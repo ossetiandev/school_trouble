@@ -143,17 +143,18 @@ import * as THREE from 'three';
 
 /* ============================================================
    HALL PASS — schoolhouse labyrinth
-   FIXES in this version:
-   • collision rewritten — strafing (A/D) works in every direction
-   • much denser map: full-length halls + ~30 extra openings
+   This version: FAT walls (2 tiles = 3.2m thick), wider halls
+   and doorways (3 tiles = 4.8m), bigger classrooms, and wooden
+   door frames on every doorway — school, not backrooms.
    ============================================================ */
 
 // ------------------------- config ---------------------------
-const M = 17;                 // maze tiles per side (odd)
-const P = 2, W = 1;           // floor tiles per maze tile / wall thickness
+const M = 13;                 // maze tiles per side (odd)
+const P = 3;                  // floor tiles per maze tile  -> corridor width
+const W = 2;                  // wall thickness in tiles    -> FAT walls
 const F = M * P + (M + 1) * W;// final tile grid size
 const T = 1.6;                // tile size in meters
-const H = 3.4;                // wall height
+const H = 3.5;                // wall height
 const HALF = F * T / 2;
 const EYE = 1.62;
 
@@ -169,7 +170,7 @@ function rng(){ rngSeed |= 0; rngSeed = rngSeed + 0x6D2B79F5 | 0;
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=(rng()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];} return a; };
 
 // --------------------- map generation ------------------------
-let mz, FG, roomG, rooms = [], roomCenters = [];
+let mz, FG, roomG, rooms = [], roomCenters = [], doorways = [];
 
 function genMap(){
   mz = new Uint8Array(M*M).fill(1);
@@ -198,8 +199,8 @@ function genMap(){
     const x = 2 + (rng()*(M-4)|0);
     for(let y=1;y<M-1;y++) mz[x+y*M]=0;
   }
-  // separate rooms
-  const want = 12; let guard=0;
+  // fewer, BIGGER rooms
+  const want = 10; let guard=0;
   while(rooms.length < want && guard++ < 400){
     const rw = 2 + (rng()*3|0), rh = 2 + (rng()*3|0);
     const rx = 1 + (rng()*(M-1-rw)|0), ry = 1 + (rng()*(M-1-rh)|0);
@@ -243,7 +244,7 @@ function genMap(){
       }
     }
   }
-  // lots of extra openings -> loops everywhere
+  // extra openings -> loops (each becomes a deep doorway through the fat wall)
   const cands=[];
   for(let y=1;y<M-1;y++)for(let x=1;x<M-1;x++){
     if(mz[x+y*M]!==1) continue;
@@ -252,23 +253,49 @@ function genMap(){
   shuffle(cands);
   let loops=0;
   for(const c of cands){
-    if(loops>=30) break;
+    if(loops>=20) break;
     const x=c%M, y=(c/M)|0;
     if((mz[x-1+y*M]===0&&mz[x+1+y*M]===0)||(mz[x+(y-1)*M]===0&&mz[x+(y+1)*M]===0)){ mz[c]=0; loops++; }
   }
-  // expand to final tile grid (corridors 2 tiles wide, walls 1 tile thick)
+  // expand to final tile grid — corridors P tiles wide, walls W tiles thick
   FG = new Uint8Array(F*F).fill(1);
-  const fx = i => W + i*(P+W);
+  const strips = [];
+  const fi = i => W + i*(P+W);
   for(let y=0;y<M;y++)for(let x=0;x<M;x++){
     if(mz[x+y*M]!==0) continue;
-    const X=fx(x), Y=fx(y);
+    const X=fi(x), Y=fi(y);
     for(let j=Y;j<Y+P;j++)for(let i=X;i<X+P;i++) FG[i+j*F]=0;
-    if(x<M-1 && mz[x+1+y*M]===0) for(let j=Y;j<Y+P;j++) FG[X+P+j*F]=0;
-    if(y<M-1 && mz[x+(y+1)*M]===0) for(let i=X;i<X+P;i++) FG[i+(Y+P)*F]=0;
+    if(x<M-1 && mz[x+1+y*M]===0){
+      strips.push({dir:'x', c0:X+P, c1:X+P+W, r0:Y, r1:Y+P});
+      for(let c=X+P;c<X+P+W;c++)for(let j=Y;j<Y+P;j++) FG[c+j*F]=0;
+    }
+    if(y<M-1 && mz[x+(y+1)*M]===0){
+      strips.push({dir:'z', c0:X, c1:X+P, r0:Y+P, r1:Y+P+W});
+      for(let r=Y+P;r<Y+P+W;r++)for(let i=X;i<X+P;i++) FG[i+r*F]=0;
+    }
   }
+  // a strip is a real doorway if wall flanks it along its full depth
+  doorways = [];
+  for(const s of strips){
+    if(s.dir==='x'){
+      let ok=true;
+      for(let c=s.c0;c<s.c1;c++){
+        if(FG[c+(s.r0-1)*F]!==1 || FG[c+s.r1*F]!==1){ ok=false; break; }
+      }
+      if(ok) doorways.push(s);
+    }else{
+      let ok=true;
+      for(let r=s.r0;r<s.r1;r++){
+        if(FG[(s.c0-1)+r*F]!==1 || FG[s.c1+r*F]!==1){ ok=false; break; }
+      }
+      if(ok) doorways.push(s);
+    }
+  }
+  // room ids + centers
   roomG = new Int16Array(F*F);
   rooms.forEach((r,k)=>{
-    const x0=fx(r.x), z0=fx(r.y), x1=x0+r.w*3-1, z1=z0+r.h*3-1;
+    const x0=fi(r.x), z0=fi(r.y);
+    const x1=x0 + r.w*(P+W) - W, z1=z0 + r.h*(P+W) - W;
     for(let j=z0;j<z1;j++)for(let i=x0;i<x1;i++) roomG[i+j*F]=k+1;
     const cx=(x0+x1)/2, cz=(z0+z1)/2;
     roomCenters.push(new THREE.Vector3((cx-F/2)*T, 0, (cz-F/2)*T));
@@ -285,14 +312,14 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.getElementById('game').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xd9d4c0);
-scene.fog = new THREE.Fog(0xd9d4c0, 8, 46);
+scene.background = new THREE.Color(0xdcd6c2);
+scene.fog = new THREE.Fog(0xdcd6c2, 9, 52);
 
-const camera = new THREE.PerspectiveCamera(74, innerWidth/innerHeight, 0.05, 130);
+const camera = new THREE.PerspectiveCamera(74, innerWidth/innerHeight, 0.05, 140);
 camera.rotation.order = 'YXZ';
 
-scene.add(new THREE.HemisphereLight(0xfff4dc, 0x8f8a77, 0.8));
-scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+scene.add(new THREE.HemisphereLight(0xfff4dc, 0x8f8a77, 0.85));
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 const dir = new THREE.DirectionalLight(0xfff1cf, 0.35);
 dir.position.set(0.4, 1, 0.25); scene.add(dir);
 
@@ -358,6 +385,7 @@ async function buildWorld(){
     new THREE.MeshLambertMaterial({map:ceilTex}));
   ceil.rotation.x=Math.PI/2; ceil.position.y=H; scene.add(ceil);
 
+  // fat walls (instanced)
   let count=0; for(let i=0;i<F*F;i++) if(FG[i]===1) count++;
   const wallMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(T,H,T),
     new THREE.MeshLambertMaterial({map:wallTex}), count);
@@ -365,7 +393,8 @@ async function buildWorld(){
   let k=0;
   for(let j=0;j<F;j++)for(let i=0;i<F;i++){
     if(FG[i+j*F]!==1) continue;
-    dummy.position.set(tileCX(i), H/2, tileCX(j)); dummy.updateMatrix();
+    dummy.position.set(tileCX(i), H/2, tileCX(j));
+    dummy.scale.set(1,1,1); dummy.updateMatrix();
     wallMesh.setMatrixAt(k, dummy.matrix);
     wallMesh.setColorAt(k, col.setScalar(0.93+rng()*0.07));
     k++;
@@ -374,10 +403,13 @@ async function buildWorld(){
   if(wallMesh.instanceColor) wallMesh.instanceColor.needsUpdate=true;
   scene.add(wallMesh);
 
+  buildDoorFrames(dummy, col);
+
+  // fluorescent panels
   for(let j=2;j<F;j+=4)for(let i=2;i<F;i+=4) if(FG[i+j*F]===0) panelSpots.push([tileCX(i), tileCX(j)]);
-  const panelGeo=new THREE.PlaneGeometry(1.35,0.7); panelGeo.rotateX(Math.PI/2);
+  const panelGeo=new THREE.PlaneGeometry(1.5,0.8); panelGeo.rotateX(Math.PI/2);
   const panels=new THREE.InstancedMesh(panelGeo, new THREE.MeshBasicMaterial({color:0xfffbe8}), panelSpots.length);
-  panelSpots.forEach(([x,z],i)=>{ dummy.position.set(x,H-0.02,z); dummy.updateMatrix(); panels.setMatrixAt(i,dummy.matrix); });
+  panelSpots.forEach(([x,z],i)=>{ dummy.position.set(x,H-0.02,z); dummy.scale.set(1,1,1); dummy.updateMatrix(); panels.setMatrixAt(i,dummy.matrix); });
   panels.instanceMatrix.needsUpdate=true; scene.add(panels);
   shuffle(panelSpots.slice()).slice(0,6).forEach(([x,z])=>{
     const m=new THREE.MeshBasicMaterial({color:0xfffbe8});
@@ -387,6 +419,38 @@ async function buildWorld(){
 
   await document.fonts.ready;
   buildBoards(); buildPosters(); buildDust();
+}
+
+// wooden door frames on every doorway through the fat walls
+function buildDoorFrames(dummy, col){
+  if(!doorways.length) return;
+  const frameMat=new THREE.MeshLambertMaterial({color:0xffffff});
+  const posts=new THREE.InstancedMesh(new THREE.BoxGeometry(0.18,H,0.18), frameMat, doorways.length*4);
+  const beams=new THREE.InstancedMesh(new THREE.BoxGeometry(1,0.5,1), frameMat, doorways.length*2);
+  let pi=0, bi=0;
+  const putPost=(x,z)=>{ dummy.position.set(x,H/2,z); dummy.scale.set(1,1,1); dummy.updateMatrix();
+    posts.setMatrixAt(pi,dummy.matrix); posts.setColorAt(pi,col.setHSL(0.07,0.5,0.3+rng()*0.08)); pi++; };
+  const putBeam=(x,z,sx,sz)=>{ dummy.position.set(x,H-0.25,z); dummy.scale.set(sx,1,sz); dummy.updateMatrix();
+    beams.setMatrixAt(bi,dummy.matrix); beams.setColorAt(bi,col.setHSL(0.07,0.5,0.33+rng()*0.06)); bi++; };
+  for(const s of doorways){
+    if(s.dir==='x'){
+      const zA=(s.r0-F/2)*T, zB=(s.r1-F/2)*T, len=(zB-zA)+0.38;
+      for(const fx of [(s.c0-F/2)*T-0.1, (s.c1-F/2)*T+0.1]){
+        putPost(fx, zA-0.1); putPost(fx, zB+0.1);
+        putBeam(fx, (zA+zB)/2, 0.18, len);
+      }
+    }else{
+      const xA=(s.c0-F/2)*T, xB=(s.c1-F/2)*T, len=(xB-xA)+0.38;
+      for(const fz of [(s.r0-F/2)*T-0.1, (s.r1-F/2)*T+0.1]){
+        putPost(xA-0.1, fz); putPost(xB+0.1, fz);
+        putBeam((xA+xB)/2, fz, len, 0.18);
+      }
+    }
+  }
+  posts.instanceMatrix.needsUpdate=true; beams.instanceMatrix.needsUpdate=true;
+  if(posts.instanceColor) posts.instanceColor.needsUpdate=true;
+  if(beams.instanceColor) beams.instanceColor.needsUpdate=true;
+  scene.add(posts); scene.add(beams);
 }
 
 function chalkboardCanvas(n){
@@ -426,9 +490,10 @@ function bestEdgeRun(x0,z0,x1,z1){
 }
 function buildBoards(){
   rooms.forEach(r=>{
-    const x0=W+r.x*(P+W), z0=W+r.y*(P+W), x1=x0+r.w*3-1, z1=z0+r.h*3-1;
+    const x0=W+r.x*(P+W), z0=W+r.y*(P+W);
+    const x1=x0 + r.w*(P+W) - W, z1=z0 + r.h*(P+W) - W;
     const e=bestEdgeRun(x0,z0,x1,z1); if(!e) return;
-    const wpx=Math.min(e.best*T*0.86, 6.4);
+    const wpx=Math.min(e.best*T*0.86, 7);
     const mesh=new THREE.Mesh(new THREE.PlaneGeometry(wpx,1.55),
       new THREE.MeshBasicMaterial({map:chalkboardCanvas(r.n)}));
     mesh.position.y=1.82;
@@ -454,10 +519,10 @@ function posterCanvas(){
 }
 function buildPosters(){
   const placed=[]; let tries=0;
-  while(placed.length<16 && tries++<1000){
+  while(placed.length<18 && tries++<1000){
     const i=1+(rng()*(F-2)|0), j=1+(rng()*(F-2)|0);
     if(!isWallTile(i,j)) continue;
-    if(placed.some(p=>Math.hypot(p[0]-i,p[1]-j)<5)) continue;
+    if(placed.some(p=>Math.hypot(p[0]-i,p[1]-j)<6)) continue;
     const opts=[];
     if(!isWallTile(i+1,j)&&!isWallTile(i+2,j)) opts.push([1,0]);
     if(!isWallTile(i-1,j)&&!isWallTile(i-2,j)) opts.push([-1,0]);
@@ -475,7 +540,7 @@ function buildPosters(){
 }
 let dust, dustVel;
 function buildDust(){
-  const N=260, pos=new Float32Array(N*3); dustVel=new Float32Array(N);
+  const N=280, pos=new Float32Array(N*3); dustVel=new Float32Array(N);
   for(let i=0;i<N;i++){
     let x,z,t=0;
     do{ x=(rng()*2-1)*(HALF-2); z=(rng()*2-1)*(HALF-2); }while(isWallAt(x,z)&&t++<20);
@@ -497,10 +562,9 @@ function spawn(){
 }
 spawn();
 
-// --- FIXED collision: circle vs wall tiles, resolved per axis ---
+// circle vs wall tiles, resolved per axis
 const R=0.34, EPS=0.001;
 function tryMove(px,pz,dx,dz){
-  // X axis
   let nx=px+dx, nz=pz;
   if(dx!==0){
     const i0=worldToTile(nx-R), i1=worldToTile(nx+R);
@@ -513,7 +577,6 @@ function tryMove(px,pz,dx,dz){
         nx = dx>0 ? Math.min(nx, x0-R-EPS) : Math.max(nx, x1+R+EPS);
     }
   }
-  // Z axis (uses corrected nx)
   nz += dz;
   if(dz!==0){
     const i0=worldToTile(nx-R), i1=worldToTile(nx+R);
@@ -638,7 +701,7 @@ function updateHUD(){
 
 window.HALLPASS={ THREE, scene, camera,
   grid:{F,T,HALF,isWallAt,isWallTile,tileCX},
-  rooms, roomCenters, player };
+  rooms, roomCenters, doorways, player };
 
 // ------------------------ main loop --------------------------
 const clock=new THREE.Clock();
