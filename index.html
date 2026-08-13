@@ -41,7 +41,7 @@
     box-shadow:5px 5px 0 rgba(0,0,0,.4);border-radius:6px}
   #toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);z-index:20;
     background:var(--paper);border:2.5px solid var(--ink);box-shadow:4px 4px 0 rgba(10,25,18,.5);
-    padding:9px 16px;border-radius:8px;font-weight:700;font-size:14px;
+    padding:9px 16px;border-radius:8px;font-weight:700;font-size:14px;max-width:80vw;
     opacity:0;pointer-events:none;transition:opacity .25s, transform .25s}
   #toast.show{opacity:1;transform:translate(-50%,0)}
   .overlay{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
@@ -88,7 +88,7 @@
 
   <div id="locChip" class="chip" style="display:none">
     <div class="big" id="locLabel">HALLWAY</div>
-    <div class="small" id="locSub">0 / 0 rooms explored</div>
+    <div class="small" id="locSub">0 rooms explored</div>
   </div>
   <div id="nbChip" class="chip" style="display:none">📓 NOTEBOOKS 0 / 8</div>
   <div id="hintChip" class="chip" style="display:none">
@@ -144,20 +144,19 @@
     </div>
   </div>
 
+<!-- error catcher: if anything breaks, you see WHY instead of a dead button -->
+<script>
+window.addEventListener('error', function(e){
+  var el=document.getElementById('toast');
+  if(el){ el.textContent='⚠ '+e.message; el.classList.add('show'); }
+});
+</script>
+
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
 </script>
 <script type="module">
 import * as THREE from 'three';
-
-/* ============================================================
-   HALL PASS — schoolhouse labyrinth
-   This version adds:
-   • 8 sealed CLASS rooms, each with a notebook on a desk
-   • right-click to collect notebooks (instant, no quiz)
-   • swinging doors that open on touch + creak/slam noises
-   • double yellow EXIT door in the start room; unlocks at 8/8
-   ============================================================ */
 
 // ------------------------- config ---------------------------
 const M = 13, P = 3, W = 2;
@@ -181,8 +180,8 @@ const DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
 
 // --------------------- map generation ------------------------
 let mz, FG, roomG, rooms=[], roomCenters=[], roomName=[''], frames=[], doorDefs=[];
-const staticBlocked = new Set();   // desk tiles etc.
-const blockedSet = new Set();      // rebuilt every frame (doors + static)
+const staticBlocked = new Set();
+const blockedSet = new Set();
 
 function genMap(){
   mz = new Uint8Array(M*M).fill(1);
@@ -275,11 +274,13 @@ function genMap(){
   }
   for(const s of strips){
     let ok=true;
-    if(s.dir==='x'){ for(let c=s.c0;c<s.c1;c++) if(FG[c+(s.r0-1)*F]!==1||FG[c+s.r1*F]!==1){ok=false;break;}
+    if(s.dir==='x'){
+      for(let c=s.c0;c<s.c1;c++) if(FG[c+(s.r0-1)*F]!==1||FG[c+s.r1*F]!==1){ok=false;break;}
       if(ok){ const zA=(s.r0-F/2)*T, zB=(s.r1-F/2)*T;
         frames.push({axis:'x', f:(s.c0-F/2)*T, a0:zA, a1:zB});
         frames.push({axis:'x', f:(s.c1-F/2)*T, a0:zA, a1:zB}); }
-    }else{ for(let r=s.r0;r<s.r1;r++) if(FG[(s.c0-1)+r*F]!==1||FG[s.c1+r*F]!==1){ok=false;break;}
+    }else{
+      for(let r=s.r0;r<s.r1;r++) if(FG[(s.c0-1)+r*F]!==1||FG[s.c1+r*F]!==1){ok=false;break;}
       if(ok){ const xA=(s.c0-F/2)*T, xB=(s.c1-F/2)*T;
         frames.push({axis:'z', f:(s.r0-F/2)*T, a0:xA, a1:xB});
         frames.push({axis:'z', f:(s.r1-F/2)*T, a0:xA, a1:xB}); }
@@ -298,7 +299,6 @@ const isWallTile=(i,j)=>(i<0||j<0||i>=F||j>=F)?true:FG[i+j*F]===1;
 const solidTile =(i,j)=>(i<0||j<0||i>=F||j>=F)?true:(FG[i+j*F]===1||blockedSet.has(i+j*F));
 const isWallAt  =(x,z)=>isWallTile(worldToTile(x),worldToTile(z));
 
-// distance-to-floor transform (for placing sealed rooms)
 function computeDist(){
   const d=new Int16Array(F*F).fill(-1), q=[];
   for(let i=0;i<F*F;i++) if(FG[i]===0){d[i]=0;q.push(i);}
@@ -315,7 +315,6 @@ function computeDist(){
   return d;
 }
 
-// plan a corridor through wall tiles toward nearest floor (no breaches)
 function planCorridor(seedTiles, forbidden){
   const N=F*F, par=new Int32Array(N).fill(-1), vis=new Uint8Array(N), q=[];
   const seedIdx=seedTiles.map(([i,j])=>i+j*F);
@@ -339,7 +338,7 @@ function planCorridor(seedTiles, forbidden){
       if(FG[ni+nj*F]===0){near=true;break;}
     }
     if(near){target=c;break;}
-    if(distT[c]<=1) continue; // don't tunnel along thin walls
+    if(distT[c]<=1) continue;
     for(const [dx,dy] of DIRS){
       const ni=ci+dx, nj=cj+dy;
       if(ni<1||nj<1||ni>F-2||nj>F-2) continue;
@@ -392,16 +391,15 @@ function genNotebookRooms(){
     const side=rng()*4|0;
     const d0=(side<2 ? x0+((w-2)>>1) : z0+((h-2)>>1));
     const D=[], V=[];
-    if(side===0){ for(let k=0;k<2;k++){D.push([d0+k,z0+h]);V.push([d0+k,z0+h+1]);} }
-    if(side===1){ for(let k=0;k<2;k++){D.push([d0+k,z0-1]);V.push([d0+k,z0-2]);} }
-    if(side===2){ for(let k=0;k<2;k++){D.push([x0+w,d0+k]);V.push([x0+w+1,d0+k]);} }
-    if(side===3){ for(let k=0;k<2;k++){D.push([x0-1,d0+k]);V.push([x0-2,d0+k]);} }
+    if(side===0){ for(let k=0;k<2;k++){D.push([d0+k,z0+h]);  V.push([d0+k,z0+h+1]);} }
+    if(side===1){ for(let k=0;k<2;k++){D.push([d0+k,z0-1]);  V.push([d0+k,z0-2]);} }
+    if(side===2){ for(let k=0;k<2;k++){D.push([x0+w,d0+k]);  V.push([x0+w+1,d0+k]);} }
+    if(side===3){ for(let k=0;k<2;k++){D.push([x0-1,d0+k]);  V.push([x0-2,d0+k]);} }
     let wallOk=true;
     for(const [i,j] of [...D,...V]) if(i<1||j<1||i>F-2||j>F-2||FG[i+j*F]!==1) wallOk=false;
     if(!wallOk) continue;
     const path=planCorridor(V, forbidden);
     if(!path) continue;
-    // commit: carve room, doorway, vestibule, corridor
     for(let j=z0;j<z0+h;j++)for(let i=x0;i<x0+w;i++) FG[i+j*F]=0;
     for(const [i,j] of [...D,...V]) FG[i+j*F]=0;
     digPath(path);
@@ -409,22 +407,22 @@ function genNotebookRooms(){
     for(let j=z0;j<z0+h;j++)for(let i=x0;i<x0+w;i++) roomG[i+j*F]=id;
     roomName[id]='CLASS '+(nbRooms.length+1);
     const cx=(x0+w/2-F/2)*T, cz=(z0+h/2-F/2)*T;
-    staticBlocked.add((x0+(w>>1))+(z0+(h>>1))*F);      // desk is solid
-    // door descriptor
+    staticBlocked.add((x0+(w>>1))+(z0+(h>>1))*F);
+    // door descriptor (face sits on the room boundary)
     let cfg;
-    const face01 = (side===0?z0+h : side===1?z0-? 0:0);
-    if(side===0) cfg={cx:(d0+1-F/2)*T, cz:(z0+h-F/2)*T, u:{x:1,z:0}, nR:{x:0,z:-1}};
-    if(side===1) cfg={cx:(d0+1-F/2)*T, cz:(z0-1-F/2)*T, u:{x:1,z:0}, nR:{x:0,z:1}};
-    if(side===2) cfg={cx:(x0+w-F/2)*T, cz:(d0+1-F/2)*T, u:{x:0,z:1}, nR:{x:-1,z:0}};
-    if(side===3) cfg={cx:(x0-1-F/2)*T, cz:(d0+1-F/2)*T, u:{x:0,z:1}, nR:{x:1,z:0}};
+    if(side===0)      cfg={cx:(d0+1-F/2)*T, cz:(z0+h-F/2)*T, u:{x:1,z:0}, nR:{x:0,z:-1}};
+    else if(side===1) cfg={cx:(d0+1-F/2)*T, cz:(z0-F/2)*T,   u:{x:1,z:0}, nR:{x:0,z:1}};
+    else if(side===2) cfg={cx:(x0+w-F/2)*T, cz:(d0+1-F/2)*T, u:{x:0,z:1}, nR:{x:-1,z:0}};
+    else              cfg={cx:(x0-F/2)*T,   cz:(d0+1-F/2)*T, u:{x:0,z:1}, nR:{x:1,z:0}};
     cfg.span=2*T; cfg.kind='single'; cfg.isExit=false; cfg.touchR=2.1;
     cfg.tiles=D.map(([i,j])=>({i,j}));
     doorDefs.push(cfg);
-    const fA=(side<2 ? (z0+h-F/2)*T : (d0-F/2)*T);
-    if(side<2){ const fz=(side===0?z0+h:z0-1-F/2+0)*T*0 + (side===0?(z0+h-F/2)*T:(z0-1-F/2)*T);
+    if(side<2){
+      const fz=(side===0?(z0+h-F/2)*T:(z0-F/2)*T);
       frames.push({axis:'z', f:fz+0.1, a0:(d0-F/2)*T, a1:(d0+2-F/2)*T});
       frames.push({axis:'z', f:fz-0.1, a0:(d0-F/2)*T, a1:(d0+2-F/2)*T});
-    }else{ const fx=(side===2?(x0+w-F/2)*T:(x0-1-F/2)*T);
+    }else{
+      const fx=(side===2?(x0+w-F/2)*T:(x0-F/2)*T);
       frames.push({axis:'x', f:fx+0.1, a0:(d0-F/2)*T, a1:(d0+2-F/2)*T});
       frames.push({axis:'x', f:fx-0.1, a0:(d0-F/2)*T, a1:(d0+2-F/2)*T});
     }
@@ -433,55 +431,99 @@ function genNotebookRooms(){
 }
 
 // ------------- yellow double EXIT door in start room -----------
+function bestEdgeRun(x0,z0,x1,z1){
+  const edges=[
+    {axis:'z', line:z0-1, from:x0, to:x1, rot:0,          off:+0.03},
+    {axis:'z', line:z1,   from:x0, to:x1, rot:Math.PI,    off:-0.03},
+    {axis:'x', line:x0-1, from:z0, to:z1, rot:Math.PI/2,  off:+0.03},
+    {axis:'x', line:x1,   from:z0, to:z1, rot:-Math.PI/2, off:-0.03},
+  ];
+  for(const e of edges){
+    if(e.line<1||e.line>=F-1) continue;
+    let run=0,bs=-1,best=0,bStart=0;
+    for(let t=e.from;t<e.to;t++){
+      const wall=e.axis==='z'?isWallTile(t,e.line):isWallTile(e.line,t);
+      if(wall){ if(run===0) bs=t; run++; if(run>best){best=run;bStart=bs;} } else run=0;
+    }
+    if(best>=2) return {...e,best,center:bStart+best/2,bStart};
+  }
+  return null;
+}
 let exitData=null;
 function setupExit(){
   const r=rooms[0];
   const x0=W+r.x*(P+W), z0=W+r.y*(P+W);
   const x1=x0+r.w*(P+W)-W, z1=z0+r.h*(P+W)-W;
   const e=bestEdgeRun(x0,z0,x1,z1);
-  let m0, axis, line, out;
-  if(e){ m0=e.bStart+((e.best-2)>>1); axis=e.axis; line=e.line;
-    out = e.axis==='z' ? {x:0,z:(e.line===z0-1?-1:1)} : {x:(e.line===x0-1?-1:1),z:0};
-  }else{ m0=x0+1; axis='z'; line=z0-1; out={x:0,z:-1}; }
-  const face = (axis==='z' ? (line===z0-1?z0:z1) : (line===x0-1?x0:x1));
+  let m0, axis, out;
+  if(e){
+    m0=e.bStart+((e.best-2)>>1);
+    axis=e.axis;
+    if(axis==='z') out={x:0, z:(e.line===z0-1?-1:1)};
+    else           out={x:(e.line===x0-1?-1:1), z:0};
+  }else{
+    m0=x0+1; axis='z'; out={x:0,z:-1};
+  }
+  const face = axis==='z' ? (out.z<0?z0:z1) : (out.x<0?x0:x1);
   const faceW=(face-F/2)*T;
-  // dig a niche outward (kept 1 tile away from anything open)
+  // dig a niche outward (never touching other open spaces on the sides)
   let depth=0;
   for(let d=1; d<=4; d++){
-    const row = axis==='z' ? (out.z<0? z0-d : z1+d-1) : 0;
-    const col = axis==='x' ? (out.x<0? x0-d : x1+d-1) : 0;
     const band=[];
-    if(axis==='z'){ for(let k=-1;k<=2;k++) band.push([m0+k,row]); }
-    else          { for(let k=-1;k<=2;k++) band.push([col,row0Safe(m0+k)]); }
-    let ok=true;
-    for(const [bi,bj] of band){ if(bi<1||bj<1||bi>F-2||bj>F-2||FG[bi+bj*F]!==1){ok=false;break;} }
-    if(!ok) break;
-    if(axis==='z'){ FG[m0+row*F]=0; FG[m0+1+row*F]=0; }
-    else          { FG[col+(m0)*F]=0; FG[col+(m0+1)*F]=0; }
+    if(axis==='z'){
+      const row = out.z<0 ? z0-d : z1+d-1;
+      for(let k=-1;k<=2;k++) band.push([m0+k,row]);
+    }else{
+      const col = out.x<0 ? x0-d : x1+d-1;
+      for(let k=-1;k<=2;k++) band.push([col,m0+k]);
+    }
+    let okBand=true;
+    for(const [bi,bj] of band){
+      if(bi<1||bj<1||bi>F-2||bj>F-2||FG[bi+bj*F]!==1){okBand=false;break;}
+    }
+    if(!okBand) break;
+    if(axis==='z'){
+      const row = out.z<0 ? z0-d : z1+d-1;
+      FG[m0+row*F]=0; FG[m0+1+row*F]=0;
+    }else{
+      const col = out.x<0 ? x0-d : x1+d-1;
+      FG[col+m0*F]=0; FG[col+(m0+1)*F]=0;
+    }
     depth=d;
   }
-  function row0Safe(v){return v;}
-  const cx=(m0+1-F/2)*T;
-  const doorCfg={span:2*T, kind:'double', isExit:true, touchR:2.3,
-    u:axis==='z'?{x:1,z:0}:{x:0,z:1}, nR:out,
-    tiles:(axis==='z'
-      ? [{i:m0,j:out.z<0?z0-1:z1},{i:m0+1,j:out.z<0?z0-1:z1}]
-      : [{i:out.x<0?x0-1:x1,j:m0},{i:out.x<0?x0-1:x1,j:m0+1}])};
-  if(axis==='z'){ doorCfg.cx=cx; doorCfg.cz=faceW; }
-  else          { doorCfg.cx=faceW; doorCfg.cz=cx; }
-  doorDefs.push(doorCfg);
-  const fOff = axis==='z' ? {x:0,z:out.z} : {x:out.x,z:0};
-  if(axis==='z'){
-    frames.push({axis:'z', f:faceW-0.1*out.z*-1*out.z, a0:(m0-F/2)*T, a1:(m0+2-F/2)*T});
+  if(depth===0){
+    // fallback: at least open the doorway row so the exit is reachable
+    if(axis==='z'){
+      const row=out.z<0?z0-1:z1;
+      if(FG[m0+row*F]===1) FG[m0+row*F]=0;
+      if(FG[m0+1+row*F]===1) FG[m0+1+row*F]=0;
+    }else{
+      const col=out.x<0?x0-1:x1;
+      if(FG[col+m0*F]===1) FG[col+m0*F]=0;
+      if(FG[col+(m0+1)*F]===1) FG[col+(m0+1)*F]=0;
+    }
   }
-  // frames on room side of the exit
-  frames.push(axis==='z
-    ? {axis:'z', f:faceW-0.1*out.z, a0:(m0-F/2)*T, a1:(m0+2-F/2)*T}
-    : {axis:'x', f:faceW-0.1*out.x, a0:(m0-F/2)*T, a1:(m0+2-F/2)*T});
-  const goalDist = Math.max(depth*T-0.55, 0.75);
-  exitData={ faceW, out, depth, cx:doorCfg.cx, cz:doorCfg.cz,
+  const cMid=(m0+1-F/2)*T;
+  const doorCfg={span:2*T, kind:'double', isExit:true, touchR:2.3,
+    u:axis==='z'?{x:1,z:0}:{x:0,z:1}, nR:out, tiles:[]};
+  if(axis==='z'){
+    doorCfg.cx=cMid; doorCfg.cz=faceW;
+    const jDoor=out.z<0?z0-1:z1;
+    doorCfg.tiles=[{i:m0,j:jDoor},{i:m0+1,j:jDoor}];
+    frames.push({axis:'z', f:faceW-0.1*out.z, a0:(m0-F/2)*T, a1:(m0+2-F/2)*T});
+    frames.push({axis:'z', f:faceW+0.1*out.z, a0:(m0-F/2)*T, a1:(m0+2-F/2)*T});
+  }else{
+    doorCfg.cx=faceW; doorCfg.cz=cMid;
+    const iDoor=out.x<0?x0-1:x1;
+    doorCfg.tiles=[{i:iDoor,j:m0},{i:iDoor,j:m0+1}];
+    frames.push({axis:'x', f:faceW-0.1*out.x, a0:(m0-F/2)*T, a1:(m0+2-F/2)*T});
+    frames.push({axis:'x', f:faceW+0.1*out.x, a0:(m0-F/2)*T, a1:(m0+2-F/2)*T});
+  }
+  doorDefs.push(doorCfg);
+  const goalDist=Math.max(depth*T-0.55, 0.75);
+  exitData={faceW, out, depth, cx:doorCfg.cx, cz:doorCfg.cz,
     gx:doorCfg.cx+out.x*goalDist, gz:doorCfg.cz+out.z*goalDist,
-    inward:{x:-out.x, z:-out.z} };
+    inward:{x:-out.x, z:-out.z}};
 }
 
 // ------------------------ renderer ---------------------------
@@ -693,7 +735,7 @@ function buildFrames(dummy,col){
 
 // --------------------------- doors ----------------------------
 function makeDoor(cfg){
-  const d={...cfg, open:0, target:0, closeT:0, wasT1:false, slammed:false,
+  const d={...cfg, open:0, target:0, closeT:0, wasT1:false,
     lastRattle:-9, everOpened:false, panels:[]};
   const mat=new THREE.MeshLambertMaterial({map:cfg.isExit?yellowTex:woodTex});
   const add=(hx,hz,u2,len)=>{
@@ -716,7 +758,7 @@ function makeDoor(cfg){
 function buildDoors(){ for(const cfg of doorDefs) doors.push(makeDoor(cfg)); }
 
 function updateDoors(dt,t){
-  // "people" who can trigger doors — future NPCs go in this list too
+  // "people" who can trigger doors — future NPCs get pushed here too
   const actors=[{x:player.x,z:player.z}];
   blockedSet.clear();
   for(const b of staticBlocked) blockedSet.add(b);
@@ -810,24 +852,6 @@ function buildExitDecor(){
 }
 
 // --------------------- boards / posters -----------------------
-function bestEdgeRun(x0,z0,x1,z1){
-  const edges=[
-    {axis:'z', line:z0-1, from:x0, to:x1, rot:0,          off:+0.03},
-    {axis:'z', line:z1,   from:x0, to:x1, rot:Math.PI,    off:-0.03},
-    {axis:'x', line:x0-1, from:z0, to:z1, rot:Math.PI/2,  off:+0.03},
-    {axis:'x', line:x1,   from:z0, to:z1, rot:-Math.PI/2, off:-0.03},
-  ];
-  for(const e of edges){
-    if(e.line<1||e.line>=F-1) continue;
-    let run=0,bs=-1,best=0,bStart=0;
-    for(let t=e.from;t<e.to;t++){
-      const wall=e.axis==='z'?isWallTile(t,e.line):isWallTile(e.line,t);
-      if(wall){ if(run===0) bs=t; run++; if(run>best){best=run;bStart=bs;} } else run=0;
-    }
-    if(best>=2) return {...e,best,center:bStart+best/2,bStart};
-  }
-  return null;
-}
 function placeBoard(x0,z0,x1,z1,title){
   const e=bestEdgeRun(x0,z0,x1,z1); if(!e) return;
   const wpx=Math.min(e.best*T*0.86,7);
@@ -918,7 +942,7 @@ function tryMove(px,pz,dx,dz){
 }
 
 const keys={};
-let locked=false,state='menu',mapOn=false,nbGot=0,exitUnlocked=false,runStart=0,wonAt=0;
+let locked=false,state='menu',mapOn=false,nbGot=0,exitUnlocked=false,runStart=0;
 addEventListener('keydown',e=>{
   keys[e.code]=true;
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
@@ -992,11 +1016,10 @@ function noiseHit(dur,vol,freq,type='lowpass',when=0){
 }
 function footstep(i){
   if(!actx||muted) return;
-  const t0=actx.currentTime;
   const s=actx.createBufferSource(); s.buffer=footBuf;
   const bp=actx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=520+rng()*380; bp.Q.value=1.1;
   const g=actx.createGain(); g.gain.value=0.05+0.075*i;
-  s.connect(bp).connect(g).connect(master); s.start(t0);
+  s.connect(bp).connect(g).connect(master); s.start();
 }
 const sfxCreak=v=>{ beep('sawtooth',150+rng()*30,82,0.42,0.09*v); noiseHit(0.3,0.025*v,600,'bandpass'); };
 const sfxSlam =v=>{ noiseHit(0.13,0.45*v,170); beep('sine',72,42,0.16,0.3*v); };
@@ -1009,7 +1032,6 @@ function toggleSound(){
   if(master) master.gain.linearRampToValueAtTime(muted?0:0.6,(actx?.currentTime||0)+0.15);
   toast(muted?'Sound off':'Sound on');
 }
-// noise hook — a future Baldi can listen: HALLPASS.onNoise = (x,z,radius)=>{...}
 function emitNoise(x,z,r){ if(window.HALLPASS.onNoise) window.HALLPASS.onNoise(x,z,r); }
 
 function unlockExit(){
@@ -1076,16 +1098,15 @@ function updateHUD(){
 }
 function win(){
   if(state==='won') return;
-  state='won'; wonAt=performance.now();
+  state='won';
   sfxWin();
-  const secs=Math.floor((wonAt-runStart)/1000);
+  const secs=Math.floor((performance.now()-runStart)/1000);
   document.getElementById('winStats').textContent=
     `Escaped in ${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')} with ${nbGot}/${NB_TOTAL} notebooks`;
   document.getElementById('winOverlay').classList.remove('hidden');
-  document.exitPointerLock&&document.exitPointerLock();
+  if(document.exitPointerLock) document.exitPointerLock();
 }
 
-// --------------------- future-content hook --------------------
 window.HALLPASS={ THREE, scene, camera,
   grid:{F,T,HALF,solidTile,isWallTile,tileCX},
   rooms, roomCenters, nbRooms, notebooks, doors, player, emitNoise, onNoise:null };
@@ -1143,8 +1164,8 @@ function animate(){
           nb.anim+=dt;
           const a=Math.min(1,nb.anim/0.3);
           nb.mesh.scale.setScalar(1+a*0.6);
-          nb.mesh.material.opacity=1-a;
           nb.mesh.material.transparent=true;
+          nb.mesh.material.opacity=1-a;
           nb.mesh.position.y=1.32+a*0.7;
           if(a>=1){nb.mesh.visible=false;nb.anim=-1;}
         }
@@ -1183,7 +1204,7 @@ addEventListener('resize',()=>{
   renderer.setSize(innerWidth,innerHeight);
 });
 buildWorld().then(()=>animate()).catch(err=>{
-  document.body.innerHTML+='<div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-family:sans-serif;z-index:99;background:#123c2b">Failed to start: '+err.message+'</div>';
+  toast('Failed to start: '+err.message);
   console.error(err);
 });
 </script>
