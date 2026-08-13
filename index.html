@@ -92,7 +92,7 @@
   </div>
   <div id="nbChip" class="chip" style="display:none">📓 NOTEBOOKS 0 / 8</div>
   <div id="hintChip" class="chip" style="display:none">
-    <b>RIGHT-CLICK</b> grab notebook &nbsp;·&nbsp; <b>M</b> map shows notebooks &nbsp;·&nbsp; <b>SHIFT</b> run &nbsp;·&nbsp; <b>N</b> sound
+    <b>ПКМ</b> взять тетрадь &nbsp;·&nbsp; <b>M</b> карта (тетради мигают) &nbsp;·&nbsp; <b>SHIFT</b> бег &nbsp;·&nbsp; <b>N</b> звук
   </div>
   <div id="mapWrap"><div class="cap">SCHOOL MAP</div><canvas id="minimap"></canvas></div>
   <div id="toast"></div>
@@ -112,11 +112,10 @@
         <div class="body">
           <div class="ctl"><span>Look around</span><kbd>MOUSE</kbd></div>
           <div class="ctl"><span>Walk / run</span><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> + <kbd>SHIFT</kbd></span></div>
-          <div class="ctl"><span>Grab a notebook (stand close, look at it)</span><kbd>RIGHT-CLICK</kbd></div>
+          <div class="ctl"><span>Grab a notebook (stand close, look, right-click)</span><kbd>RMB</kbd></div>
           <div class="ctl"><span>Notebooks blink on the school map</span><kbd>M</kbd></div>
-          <div class="note">The notebooks are inside sealed <b>CLASS rooms</b> — look for wooden doors
-            in the walls. When you have all 8, the <b>double yellow door</b> in your starting classroom
-            unlocks. Skins load from <b>Files/wall.png</b> &amp; <b>Files/floor.png</b>.</div>
+          <div class="note">Notebooks hide inside sealed <b>CLASS rooms</b> — look for red doors
+            with a <b>CLASS N</b> sign. All 8 → the <b>yellow door</b> in your starting classroom unlocks.</div>
         </div>
       </div>
       <button class="bigBtn" id="startBtn">ENTER THE SCHOOL ➜</button>
@@ -298,24 +297,6 @@ const isWallTile=(i,j)=>(i<0||j<0||i>=F||j>=F)?true:FG[i+j*F]===1;
 const solidTile =(i,j)=>(i<0||j<0||i>=F||j>=F)?true:(FG[i+j*F]===1||blockedSet.has(i+j*F));
 const isWallAt  =(x,z)=>isWallTile(worldToTile(x),worldToTile(z));
 
-function computeDist(){
-  const d=new Int16Array(F*F).fill(-1), q=[];
-  for(let i=0;i<F*F;i++) if(FG[i]===0){d[i]=0;q.push(i);}
-  let h=0;
-  while(h<q.length){
-    const c=q[h++], ci=c%F, cj=(c/F)|0;
-    for(const [dx,dy] of DIRS){
-      const ni=ci+dx, nj=cj+dy;
-      if(ni<0||nj<0||ni>=F||nj>=F) continue;
-      const n=ni+nj*F;
-      if(d[n]===-1){d[n]=d[c]+1;q.push(n);}
-    }
-  }
-  return d;
-}
-
-// corridor planner: tunnels through walls toward nearest floor,
-// never through forbidden tiles (other sealed rooms)
 function planCorridor(seedTiles, forbidden){
   const N=F*F, par=new Int32Array(N).fill(-1), vis=new Uint8Array(N), q=[];
   const seedIdx=seedTiles.map(([i,j])=>i+j*F);
@@ -369,46 +350,35 @@ function digPath(path){
   }
 }
 
-// ------------- 8 sealed CLASS rooms with notebooks -------------
+// ---- 8 sealed CLASS rooms: deterministic full-grid scan ----
 const nbRooms=[];
-const globalForbidden=new Set();   // wall rings + doorways of sealed rooms
-function genNotebookRooms(){
-  let attempt=0;
-  while(nbRooms.length<NB_TOTAL && attempt<9000){
-    attempt++;
-    // size ladder: big first, fall back to smaller closets
-    let w,h;
-    if(attempt<2500){ w=5+(rng()*2|0); h=5+(rng()*2|0); }
-    else if(attempt<5500){ w=4+(rng()*2|0); h=4+(rng()*2|0); }
-    else { w=3+(rng()*2|0); h=3+(rng()*2|0); }
-    const x0=2+(rng()*(F-w-4)|0), z0=2+(rng()*(F-h-4)|0);
-    // expanded ring must be solid wall (live check = guaranteed seal)
-    let ok=true;
-    const ring=[];
-    for(let j=z0-1;j<=z0+h&&ok;j++)for(let i=x0-1;i<=x0+w;i++){
-      if(i<1||j<1||i>F-2||j>F-2||FG[i+j*F]!==1){ok=false;break;}
-      ring.push([i,j]);
-    }
-    if(!ok) continue;
-    if(nbRooms.some(r=>Math.hypot(r.x0+r.w/2-(x0+w/2), r.z0+r.h/2-(z0+h/2))<9)) continue;
-    const rect=[];
-    for(let j=z0;j<z0+h;j++)for(let i=x0;i<x0+w;i++) rect.push([i,j]);
-    const side=rng()*4|0;
+const globalForbidden=new Set();
+
+function tryPlace(x0,z0,w,h){
+  let ok=true; const ring=[];
+  for(let j=z0-1;j<=z0+h&&ok;j++)for(let i=x0-1;i<=x0+w;i++){
+    if(i<1||j<1||i>F-2||j>F-2||FG[i+j*F]!==1){ok=false;break;}
+    ring.push([i,j]);
+  }
+  if(!ok) return false;
+  if(nbRooms.some(r=>Math.hypot(r.x0+r.w/2-(x0+w/2), r.z0+r.h/2-(z0+h/2))<9)) return false;
+  const rect=[];
+  for(let j=z0;j<z0+h;j++)for(let i=x0;i<x0+w;i++) rect.push([i,j]);
+  for(const side of shuffle([0,1,2,3])){
     const d0=(side<2 ? x0+((w-2)>>1) : z0+((h-2)>>1));
-    const D=[], V=[];
+    const D=[],V=[];
     if(side===0){ for(let k=0;k<2;k++){D.push([d0+k,z0+h]);  V.push([d0+k,z0+h+1]);} }
     if(side===1){ for(let k=0;k<2;k++){D.push([d0+k,z0-1]);  V.push([d0+k,z0-2]);} }
     if(side===2){ for(let k=0;k<2;k++){D.push([x0+w,d0+k]);  V.push([x0+w+1,d0+k]);} }
     if(side===3){ for(let k=0;k<2;k++){D.push([x0-1,d0+k]);  V.push([x0-2,d0+k]);} }
     let wallOk=true;
-    for(const [i,j] of [...D,...V]) if(i<1||j<1||i>F-2||j>F-2||FG[i+j*F]!==1) wallOk=false;
+    for(const [i,j] of [...D,...V]) if(i<1||j<1||i>F-2||j>F-2||FG[i+j*F]!==1){wallOk=false;break;}
     if(!wallOk) continue;
-    // plan the connector corridor before committing anything
     const selfForbid=new Set(globalForbidden);
     for(const [i,j] of rect) selfForbid.add(i+j*F);
     const path=planCorridor(V, selfForbid);
     if(!path) continue;
-    // commit: carve room, doorway, vestibule, corridor
+    // commit
     for(const [i,j] of rect) FG[i+j*F]=0;
     for(const [i,j] of [...D,...V]) FG[i+j*F]=0;
     digPath(path);
@@ -424,6 +394,7 @@ function genNotebookRooms(){
     else if(side===2) cfg={cx:(x0+w-F/2)*T, cz:(d0+1-F/2)*T, u:{x:0,z:1}, nR:{x:-1,z:0}};
     else              cfg={cx:(x0-F/2)*T,   cz:(d0+1-F/2)*T, u:{x:0,z:1}, nR:{x:1,z:0}};
     cfg.span=2*T; cfg.kind='single'; cfg.isExit=false; cfg.touchR=2.1;
+    cfg.label='CLASS '+(nbRooms.length+1);
     cfg.tiles=D.map(([i,j])=>({i,j}));
     doorDefs.push(cfg);
     if(side<2){
@@ -436,6 +407,25 @@ function genNotebookRooms(){
       frames.push({axis:'x', f:fx-0.1, a0:(d0-F/2)*T, a1:(d0+2-F/2)*T});
     }
     nbRooms.push({x0,z0,w,h,id,n:nbRooms.length+1,cx,cz});
+    return true;
+  }
+  return false;
+}
+function genNotebookRooms(){
+  const sizes=[[6,6],[5,5],[4,4],[3,3]];
+  for(const [w,h] of sizes){
+    if(nbRooms.length>=NB_TOTAL) break;
+    const xs=[], zs=[];
+    for(let x=2;x<=F-w-3;x++) xs.push(x);
+    for(let z=2;z<=F-h-3;z++) zs.push(z);
+    shuffle(xs); shuffle(zs);
+    for(const x0 of xs){
+      if(nbRooms.length>=NB_TOTAL) break;
+      for(const z0 of zs){
+        if(nbRooms.length>=NB_TOTAL) break;
+        tryPlace(x0,z0,w,h);
+      }
+    }
   }
   console.log(`[HALL PASS] notebook rooms placed: ${nbRooms.length}/${NB_TOTAL} (map ${F}x${F})`);
   if(nbRooms.length<NB_TOTAL)
@@ -617,6 +607,12 @@ function exitSignTex(){ return canvasTex(256,80,(g,w,h)=>{
   g.fillStyle='#fff'; g.textAlign='center';
   g.font='48px "Luckiest Guy","Comic Neue",cursive'; g.fillText('EXIT',w/2,58);
 });}
+function classSignTex(text){ return canvasTex(256,96,(g,w,h)=>{
+  g.fillStyle='#a34a2a'; g.fillRect(0,0,w,h);
+  g.strokeStyle='#fdf4dd'; g.lineWidth=6; g.strokeRect(4,4,w-8,h-8);
+  g.fillStyle='#fdf4dd'; g.textAlign='center';
+  g.font='44px "Luckiest Guy","Comic Neue",cursive'; g.fillText(text,w/2,66);
+});}
 function chalkboardCanvas(title){
   return canvasTex(512,288,(g,w,h)=>{
     g.fillStyle='#8a5a33'; g.fillRect(0,0,w,h);
@@ -658,7 +654,6 @@ function loadTex(url,fallback,label){
 
 // ---------------- run generation before building --------------
 genMap();
-const distT = computeDist();
 genNotebookRooms();
 setupExit();
 
@@ -747,7 +742,9 @@ function buildFrames(dummy,col){
 function makeDoor(cfg){
   const d={...cfg, open:0, target:0, closeT:0, wasT1:false,
     lastRattle:-9, everOpened:false, panels:[]};
-  const mat=new THREE.MeshLambertMaterial({map:cfg.isExit?yellowTex:woodTex});
+  const mat=new THREE.MeshLambertMaterial({
+    map:cfg.isExit?yellowTex:woodTex,
+    color:cfg.isExit?0xffffff:0xd8845f});   // class doors are reddish
   const add=(hx,hz,u2,len)=>{
     const pivot=new THREE.Group(); pivot.position.set(hx,0,hz);
     const base=Math.atan2(-u2.z,u2.x); pivot.rotation.y=base;
@@ -762,6 +759,15 @@ function makeDoor(cfg){
   }else{
     add(cfg.cx-u.x*sp/2, cfg.cz-u.z*sp/2, u, sp/2);
     add(cfg.cx+u.x*sp/2, cfg.cz+u.z*sp/2, {x:-u.x,z:-u.z}, sp/2);
+  }
+  // sign above class doors
+  if(cfg.label){
+    const f={x:-cfg.nR.x, z:-cfg.nR.z};
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(1.5,0.55),
+      new THREE.MeshBasicMaterial({map:classSignTex(cfg.label)}));
+    m.position.set(cfg.cx+f.x*0.12, 2.72, cfg.cz+f.z*0.12);
+    m.rotation.y=Math.atan2(f.x,f.z);
+    scene.add(m);
   }
   return d;
 }
@@ -1069,7 +1075,7 @@ function drawMinimap(t){
     if(nb.collected) continue;
     const blink=0.55+0.45*Math.sin(t*5+nb.seed);
     mg.fillStyle=`rgba(255,210,63,${blink})`;
-    mg.beginPath(); mg.arc((nb.x+HALF)/T*s,(nb.z+HALF)/T*s,2.6,0,7); mg.fill();
+    mg.beginPath(); mg.arc((nb.x+HALF)/T*s,(nb.z+HALF)/T*s,3,0,7); mg.fill();
   }
   if(exitData){
     mg.fillStyle=exitUnlocked?'#ffd23f':'#a8842a';
@@ -1096,7 +1102,7 @@ document.getElementById('startBtn').addEventListener('click',()=>{
   ['locChip','hintChip','nbChip'].forEach(id=>document.getElementById(id).style.display='block');
   nbChip.textContent=`📓 NOTEBOOKS 0 / ${NB_TOTAL}`;
   introT=0; setTimeout(requestLock,60);
-  if(genWarning) setTimeout(()=>toast(genWarning),1200);
+  setTimeout(()=>toast(genWarning || `School built: ${nbRooms.length}/${NB_TOTAL} notebook rooms hidden. Press M to hunt!`),1200);
 });
 const locLabel=document.getElementById('locLabel'),locSub=document.getElementById('locSub');
 const visitedRooms=new Set(); let lastLoc='';
