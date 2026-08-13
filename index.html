@@ -18,16 +18,13 @@
   #game{position:fixed;inset:0}
   #game canvas{display:block}
 
-  /* ---------- vignette / mood ---------- */
   #vignette{position:fixed;inset:0;pointer-events:none;z-index:5;
     background:radial-gradient(ellipse at 50% 45%, transparent 52%, rgba(8,20,14,.42) 100%)}
 
-  /* ---------- crosshair ---------- */
   #cross{position:fixed;left:50%;top:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;
     border-radius:50%;background:#fff;mix-blend-mode:difference;z-index:8;pointer-events:none;
     box-shadow:0 0 0 3px rgba(255,255,255,.35)}
 
-  /* ---------- HUD ---------- */
   .chip{position:fixed;z-index:9;background:var(--paper);border:2.5px solid var(--ink);
     box-shadow:4px 4px 0 rgba(10,25,18,.45);padding:7px 12px;border-radius:8px;
     font-weight:700;font-size:14px;line-height:1.25}
@@ -42,14 +39,12 @@
   #minimap{display:block;background:#0d241a;border:3px solid var(--yellow);
     box-shadow:5px 5px 0 rgba(0,0,0,.4);border-radius:6px}
 
-  /* ---------- toast ---------- */
   #toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);z-index:20;
     background:var(--paper);border:2.5px solid var(--ink);box-shadow:4px 4px 0 rgba(10,25,18,.5);
     padding:9px 16px;border-radius:8px;font-weight:700;font-size:14px;
     opacity:0;pointer-events:none;transition:opacity .25s, transform .25s}
   #toast.show{opacity:1;transform:translate(-50%,0)}
 
-  /* ---------- overlays ---------- */
   .overlay{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
     transition:opacity .45s;background:
       radial-gradient(1100px 700px at 50% 18%, #2c7a58 0%, var(--board) 48%, var(--board-deep) 100%)}
@@ -105,7 +100,6 @@
   <div id="mapWrap"><div class="cap">SCHOOL MAP</div><canvas id="minimap"></canvas></div>
   <div id="toast"></div>
 
-  <!-- start menu -->
   <div id="startOverlay" class="overlay">
     <span class="doodle" style="top:8%;left:7%;font-size:64px;animation-duration:6s">✎</span>
     <span class="doodle" style="top:16%;right:9%;font-size:52px;animation-duration:8s">★</span>
@@ -134,7 +128,6 @@
     </div>
   </div>
 
-  <!-- pause -->
   <div id="pauseOverlay" class="overlay hidden">
     <div class="menuCol">
       <div class="title" style="font-size:clamp(40px,7vw,72px)">PAUSED</div>
@@ -150,15 +143,15 @@ import * as THREE from 'three';
 
 /* ============================================================
    HALL PASS — schoolhouse labyrinth
-   Sections: config · maze gen · renderer · textures · geometry
-             decor · player · audio · minimap · UI · main loop
-   Future content hooks: window.HALLPASS (grid, rooms, player)
+   FIXES in this version:
+   • collision rewritten — strafing (A/D) works in every direction
+   • much denser map: full-length halls + ~30 extra openings
    ============================================================ */
 
 // ------------------------- config ---------------------------
-const M = 15;                 // maze tiles per side (odd)
+const M = 17;                 // maze tiles per side (odd)
 const P = 2, W = 1;           // floor tiles per maze tile / wall thickness
-const F = M * P + (M + 1) * W;// final tile grid size (46)
+const F = M * P + (M + 1) * W;// final tile grid size
 const T = 1.6;                // tile size in meters
 const H = 3.4;                // wall height
 const HALF = F * T / 2;
@@ -166,6 +159,7 @@ const EYE = 1.62;
 
 const tileCX = i => (i + 0.5) * T - HALF;
 const worldToTile = v => Math.floor((v + HALF) / T);
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 
 let rngSeed = (Math.random() * 1e9) | 0;
 function rng(){ rngSeed |= 0; rngSeed = rngSeed + 0x6D2B79F5 | 0;
@@ -175,12 +169,11 @@ function rng(){ rngSeed |= 0; rngSeed = rngSeed + 0x6D2B79F5 | 0;
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=(rng()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];} return a; };
 
 // --------------------- map generation ------------------------
-// maze-tile grid (0 floor / 1 wall) -> final tile grid FG
 let mz, FG, roomG, rooms = [], roomCenters = [];
 
 function genMap(){
   mz = new Uint8Array(M*M).fill(1);
-  // perfect maze (recursive backtracker) on odd lattice -> corridors
+  // perfect maze (recursive backtracker) -> base corridors
   const stack = [[1,1]]; mz[1+1*M] = 0;
   while(stack.length){
     const [cx,cy] = stack[stack.length-1];
@@ -195,9 +188,19 @@ function genMap(){
     }
     if(!moved) stack.pop();
   }
+  // long Baldi-style halls: carve a few full rows & columns
+  const hallRows = 2 + (rng()*2|0), hallCols = 2 + (rng()*2|0);
+  for(let h=0; h<hallRows; h++){
+    const y = 2 + (rng()*(M-4)|0);
+    for(let x=1;x<M-1;x++) mz[x+y*M]=0;
+  }
+  for(let h=0; h<hallCols; h++){
+    const x = 2 + (rng()*(M-4)|0);
+    for(let y=1;y<M-1;y++) mz[x+y*M]=0;
+  }
   // separate rooms
-  const want = 10; let guard=0;
-  while(rooms.length < want && guard++ < 300){
+  const want = 12; let guard=0;
+  while(rooms.length < want && guard++ < 400){
     const rw = 2 + (rng()*3|0), rh = 2 + (rng()*3|0);
     const rx = 1 + (rng()*(M-1-rw)|0), ry = 1 + (rng()*(M-1-rh)|0);
     let overlap=0, area=0;
@@ -206,7 +209,7 @@ function genMap(){
     for(let y=ry;y<ry+rh;y++)for(let x=rx;x<rx+rw;x++) mz[x+y*M]=0;
     rooms.push({x:rx,y:ry,w:rw,h:rh,n:rooms.length+1});
   }
-  // guarantee connectivity (dig a path from any orphan floor to the rest)
+  // guarantee connectivity
   const N=M*M;
   const flood = ()=>{ const vis=new Uint8Array(N), q=[1+M]; vis[1+M]=1;
     while(q.length){ const c=q.pop(), cx=c%M, cy=(c/M)|0;
@@ -240,7 +243,7 @@ function genMap(){
       }
     }
   }
-  // knock extra openings -> loops, like a real school
+  // lots of extra openings -> loops everywhere
   const cands=[];
   for(let y=1;y<M-1;y++)for(let x=1;x<M-1;x++){
     if(mz[x+y*M]!==1) continue;
@@ -249,7 +252,7 @@ function genMap(){
   shuffle(cands);
   let loops=0;
   for(const c of cands){
-    if(loops>=14) break;
+    if(loops>=30) break;
     const x=c%M, y=(c/M)|0;
     if((mz[x-1+y*M]===0&&mz[x+1+y*M]===0)||(mz[x+(y-1)*M]===0&&mz[x+(y+1)*M]===0)){ mz[c]=0; loops++; }
   }
@@ -263,7 +266,6 @@ function genMap(){
     if(x<M-1 && mz[x+1+y*M]===0) for(let j=Y;j<Y+P;j++) FG[X+P+j*F]=0;
     if(y<M-1 && mz[x+(y+1)*M]===0) for(let i=X;i<X+P;i++) FG[i+(Y+P)*F]=0;
   }
-  // stamp room ids + centers
   roomG = new Int16Array(F*F);
   rooms.forEach((r,k)=>{
     const x0=fx(r.x), z0=fx(r.y), x1=x0+r.w*3-1, z1=z0+r.h*3-1;
@@ -284,9 +286,9 @@ document.getElementById('game').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xd9d4c0);
-scene.fog = new THREE.Fog(0xd9d4c0, 8, 44);
+scene.fog = new THREE.Fog(0xd9d4c0, 8, 46);
 
-const camera = new THREE.PerspectiveCamera(74, innerWidth/innerHeight, 0.05, 120);
+const camera = new THREE.PerspectiveCamera(74, innerWidth/innerHeight, 0.05, 130);
 camera.rotation.order = 'YXZ';
 
 scene.add(new THREE.HemisphereLight(0xfff4dc, 0x8f8a77, 0.8));
@@ -335,21 +337,18 @@ function loadTex(url, fallback, label){
 // --------------------- world building ------------------------
 genMap();
 
-let wallTex, floorTex;
 const flickerMats=[], panelSpots=[];
 
 async function buildWorld(){
   const [wRes,fRes] = await Promise.all([loadTex('Files/wall.png',fallbackWall,'Files/wall.png'),
                                          loadTex('Files/floor.png',fallbackFloor,'Files/floor.png')]);
-  wallTex=wRes.tex; floorTex=fRes.tex;
+  const wallTex=wRes.tex, floorTex=fRes.tex;
 
-  // floor
   floorTex.repeat.set(F,F);
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(F*T,F*T),
     new THREE.MeshLambertMaterial({map:floorTex}));
   floor.rotation.x=-Math.PI/2; scene.add(floor);
 
-  // ceiling (drop-ceiling tiles, generated)
   const ceilTex=canvasTex(128,128,(g,w,h)=>{
     g.fillStyle='#f2edde'; g.fillRect(0,0,w,h);
     g.strokeStyle='#cfc8b2'; g.lineWidth=5; g.strokeRect(0,0,w,h);
@@ -359,7 +358,6 @@ async function buildWorld(){
     new THREE.MeshLambertMaterial({map:ceilTex}));
   ceil.rotation.x=Math.PI/2; ceil.position.y=H; scene.add(ceil);
 
-  // walls (one instanced mesh)
   let count=0; for(let i=0;i<F*F;i++) if(FG[i]===1) count++;
   const wallMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(T,H,T),
     new THREE.MeshLambertMaterial({map:wallTex}), count);
@@ -376,13 +374,12 @@ async function buildWorld(){
   if(wallMesh.instanceColor) wallMesh.instanceColor.needsUpdate=true;
   scene.add(wallMesh);
 
-  // fluorescent light panels
   for(let j=2;j<F;j+=4)for(let i=2;i<F;i+=4) if(FG[i+j*F]===0) panelSpots.push([tileCX(i), tileCX(j)]);
   const panelGeo=new THREE.PlaneGeometry(1.35,0.7); panelGeo.rotateX(Math.PI/2);
   const panels=new THREE.InstancedMesh(panelGeo, new THREE.MeshBasicMaterial({color:0xfffbe8}), panelSpots.length);
   panelSpots.forEach(([x,z],i)=>{ dummy.position.set(x,H-0.02,z); dummy.updateMatrix(); panels.setMatrixAt(i,dummy.matrix); });
   panels.instanceMatrix.needsUpdate=true; scene.add(panels);
-  shuffle(panelSpots.slice()).slice(0,6).forEach(([x,z])=>{   // a few flicker
+  shuffle(panelSpots.slice()).slice(0,6).forEach(([x,z])=>{
     const m=new THREE.MeshBasicMaterial({color:0xfffbe8});
     const p=new THREE.Mesh(panelGeo.clone(), m); p.position.set(x,H-0.03,z); scene.add(p);
     flickerMats.push({m, seed:rng()*100});
@@ -392,7 +389,6 @@ async function buildWorld(){
   buildBoards(); buildPosters(); buildDust();
 }
 
-// chalkboards — one per classroom, with its room number
 function chalkboardCanvas(n){
   return canvasTex(512,288,(g,w,h)=>{
     g.fillStyle='#8a5a33'; g.fillRect(0,0,w,h);
@@ -407,7 +403,7 @@ function chalkboardCanvas(n){
     g.fillText(eqs[0], w*0.3, 175); g.fillText(eqs[1], w*0.72, 205);
     g.strokeStyle='rgba(247,244,230,.4)'; g.lineWidth=8;
     g.beginPath(); g.ellipse(w*0.28,h-42,52,10,0.15,0,Math.PI*2); g.stroke();
-    g.fillStyle='#c89b5a'; g.fillRect(14,h-16,w-28,10);           // chalk tray
+    g.fillStyle='#c89b5a'; g.fillRect(14,h-16,w-28,10);
   });
 }
 function bestEdgeRun(x0,z0,x1,z1){
@@ -441,7 +437,6 @@ function buildBoards(){
     mesh.rotation.y=e.rot; scene.add(mesh);
   });
 }
-// hallway posters
 function posterCanvas(){
   const words=['THINK!','READ!','MATH IS FUN!','NO RUNNING!','BE KIND','A+ WORK!','STUDY!','1+2=3'];
   const bgs=['#ffd23f','#ff8a75','#7cc7ff','#a5e07c','#ffc0e2'];
@@ -459,7 +454,7 @@ function posterCanvas(){
 }
 function buildPosters(){
   const placed=[]; let tries=0;
-  while(placed.length<14 && tries++<900){
+  while(placed.length<16 && tries++<1000){
     const i=1+(rng()*(F-2)|0), j=1+(rng()*(F-2)|0);
     if(!isWallTile(i,j)) continue;
     if(placed.some(p=>Math.hypot(p[0]-i,p[1]-j)<5)) continue;
@@ -478,10 +473,9 @@ function buildPosters(){
     scene.add(mesh); placed.push([i,j]);
   }
 }
-// floating dust motes
 let dust, dustVel;
 function buildDust(){
-  const N=240, pos=new Float32Array(N*3); dustVel=new Float32Array(N);
+  const N=260, pos=new Float32Array(N*3); dustVel=new Float32Array(N);
   for(let i=0;i<N;i++){
     let x,z,t=0;
     do{ x=(rng()*2-1)*(HALF-2); z=(rng()*2-1)*(HALF-2); }while(isWallAt(x,z)&&t++<20);
@@ -502,6 +496,38 @@ function spawn(){
   player.x=c.x; player.z=c.z; player.vx=player.vz=0; player.yaw=rng()*Math.PI*2; player.pitch=0;
 }
 spawn();
+
+// --- FIXED collision: circle vs wall tiles, resolved per axis ---
+const R=0.34, EPS=0.001;
+function tryMove(px,pz,dx,dz){
+  // X axis
+  let nx=px+dx, nz=pz;
+  if(dx!==0){
+    const i0=worldToTile(nx-R), i1=worldToTile(nx+R);
+    const j0=worldToTile(nz-R), j1=worldToTile(nz+R);
+    for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){
+      if(!isWallTile(i,j)) continue;
+      const x0=i*T-HALF, x1=x0+T, z0=j*T-HALF, z1=z0+T;
+      const cx=clamp(nx,x0,x1), cz=clamp(nz,z0,z1);
+      if((nx-cx)*(nx-cx)+(nz-cz)*(nz-cz) < R*R)
+        nx = dx>0 ? Math.min(nx, x0-R-EPS) : Math.max(nx, x1+R+EPS);
+    }
+  }
+  // Z axis (uses corrected nx)
+  nz += dz;
+  if(dz!==0){
+    const i0=worldToTile(nx-R), i1=worldToTile(nx+R);
+    const j0=worldToTile(nz-R), j1=worldToTile(nz+R);
+    for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){
+      if(!isWallTile(i,j)) continue;
+      const x0=i*T-HALF, x1=x0+T, z0=j*T-HALF, z1=z0+T;
+      const cx=clamp(nx,x0,x1), cz=clamp(nz,z0,z1);
+      if((nx-cx)*(nx-cx)+(nz-cz)*(nz-cz) < R*R)
+        nz = dz>0 ? Math.min(nz, z0-R-EPS) : Math.max(nz, z1+R+EPS);
+    }
+  }
+  return [nx,nz];
+}
 
 const keys={};
 addEventListener('keydown', e=>{
@@ -530,22 +556,6 @@ document.addEventListener('pointerlockerror', ()=>toast('Click again to capture 
 function requestLock(){ try{ renderer.domElement.requestPointerLock(); }catch(e){} }
 renderer.domElement.addEventListener('click', ()=>{ if(state==='play'&&!locked) requestLock(); });
 document.getElementById('pauseOverlay').addEventListener('click', requestLock);
-
-const R=0.34, EPS=0.001;
-function collideAxis(nx,nz,axis,delta){
-  const i0=worldToTile(nx-R), i1=worldToTile(nx+R), j0=worldToTile(nz-R), j1=worldToTile(nz+R);
-  for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){
-    if(!isWallTile(i,j)) continue;
-    const x0=i*T-HALF, x1=x0+T, z0=j*T-HALF, z1=z0+T;
-    const cx=Math.max(x0,Math.min(nx,x1)), cz=Math.max(z0,Math.min(nz,z1));
-    const dx=nx-cx, dz=nz-cz;
-    if(dx*dx+dz*dz < R*R){
-      if(axis==='x') nx = delta>0 ? Math.min(nx, x0-R-EPS) : Math.max(nx, x1+R+EPS);
-      else           nz = delta>0 ? Math.min(nz, z0-R-EPS) : Math.max(nz, z1+R+EPS);
-    }
-  }
-  return axis==='x'?nx:nz;
-}
 
 // ------------------------- audio -----------------------------
 let actx=null, master=null, muted=false, footBuf=null;
@@ -620,13 +630,12 @@ const visitedRooms=new Set(); let lastLoc='';
 function updateHUD(){
   const i=worldToTile(player.x), j=worldToTile(player.z);
   const rid=(i>=0&&j>=0&&i<F&&j<F)?roomG[i+j*F]:0;
-  if(rid){ visitedRooms.add(rid); }
+  if(rid) visitedRooms.add(rid);
   const loc=rid?('ROOM '+rid):'HALLWAY';
   if(loc!==lastLoc){ lastLoc=loc; locLabel.textContent=loc; }
   locSub.textContent=`${visitedRooms.size} / ${rooms.length} rooms explored`;
 }
 
-// -------------------- future-content hook --------------------
 window.HALLPASS={ THREE, scene, camera,
   grid:{F,T,HALF,isWallAt,isWallTile,tileCX},
   rooms, roomCenters, player };
@@ -643,7 +652,6 @@ function animate(){
     camera.position.set(player.x, EYE+Math.sin(t*0.6)*0.04, player.z);
     camera.rotation.set(Math.sin(t*0.4)*0.03, menuYaw, 0);
   }else{
-    // movement
     let fx=0, fz=0;
     if(locked){
       const fX=-Math.sin(player.yaw), fZ=-Math.cos(player.yaw);
@@ -660,10 +668,9 @@ function animate(){
     }
     const k=1-Math.exp(-12*dt);
     player.vx+=(fx-player.vx)*k; player.vz+=(fz-player.vz)*k;
-    if(Math.abs(player.vx)>1e-4){ player.x=collideAxis(player.x+player.vx*dt,player.z,'x',player.vx); }
-    if(Math.abs(player.vz)>1e-4){ player.z=collideAxis(player.z,player.z+player.vz*dt,'z',player.vz); }
+    const [nx,nz]=tryMove(player.x, player.z, player.vx*dt, player.vz*dt);
+    player.x=nx; player.z=nz;
 
-    // head bob + footsteps
     const sp=Math.hypot(player.vx,player.vz);
     if(sp>0.4){
       player.phase+=dt*sp*2.1;
@@ -682,13 +689,11 @@ function animate(){
     if(mapOn) drawMinimap();
   }
 
-  // flickering panels
   for(const f of flickerMats){
     const on=Math.sin(t*21+f.seed)>-0.86?1:0.25;
     const v=on*(0.82+0.18*Math.sin(t*7+f.seed*3));
     f.m.color.setRGB(v, v*0.985, v*0.91);
   }
-  // drifting dust
   if(dust){
     const p=dust.geometry.attributes.position;
     for(let i=0;i<dustVel.length;i++){
