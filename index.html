@@ -34,12 +34,20 @@
   @keyframes pulseRed{from{transform:translateX(-50%) scale(1)}to{transform:translateX(-50%) scale(1.09)}}
   #hintChip{bottom:14px;left:14px;font-size:12.5px;opacity:.92}
   #hintChip b{color:var(--red)}
+  #stamWrap{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9;display:none;text-align:center}
+  #stamLabel{font-family:"Luckiest Guy";font-size:13px;color:var(--chalk);
+    text-shadow:2px 2px 0 rgba(0,0,0,.55);letter-spacing:2px;margin-bottom:3px}
+  #stamBar{width:280px;height:16px;background:#0d241a;border:2.5px solid var(--ink);
+    box-shadow:3px 3px 0 rgba(0,0,0,.4);border-radius:8px;overflow:hidden}
+  #stamFill{height:100%;width:100%;background:#5fd068}
+  #stamWrap.exhausted #stamFill{background:var(--red)}
+  #stamWrap.exhausted #stamLabel{color:var(--red);animation:pulseRed .35s ease-in-out infinite alternate;transform:none}
   #mapWrap{position:fixed;top:14px;right:14px;z-index:9;display:none}
   #mapWrap .cap{font-family:"Luckiest Guy";text-align:center;color:var(--yellow);
     text-shadow:2px 2px 0 rgba(0,0,0,.5);font-size:14px;letter-spacing:1px;margin-bottom:4px}
   #minimap{display:block;background:#0d241a;border:3px solid var(--yellow);
     box-shadow:5px 5px 0 rgba(0,0,0,.4);border-radius:6px}
-  #toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);z-index:20;
+  #toast{position:fixed;left:50%;bottom:60px;transform:translate(-50%,14px);z-index:20;
     background:var(--paper);border:2.5px solid var(--ink);box-shadow:4px 4px 0 rgba(10,25,18,.5);
     padding:9px 16px;border-radius:8px;font-weight:700;font-size:14px;max-width:80vw;
     opacity:0;pointer-events:none;transition:opacity .25s, transform .25s}
@@ -78,7 +86,8 @@
   .soon{margin-top:16px;color:var(--chalk);opacity:.75;font-size:13.5px;font-style:italic}
   #pauseOverlay{background:rgba(10,30,22,.72);cursor:pointer}
   #pauseOverlay .menuCol{pointer-events:none}
-  #winStats{color:var(--chalk);font-size:19px;margin:10px 0 26px;font-weight:700}
+  #winStats,#caughtTag{color:var(--chalk);font-size:19px;margin:10px 0 26px;font-weight:700}
+  #caughtOverlay{background:radial-gradient(900px 600px at 50% 30%, #8c1d1d 0%, #4a0d0d 70%, #2a0606 100%)}
 </style>
 </head>
 <body>
@@ -92,7 +101,11 @@
   </div>
   <div id="nbChip" class="chip" style="display:none">📓 NOTEBOOKS 0 / 8</div>
   <div id="hintChip" class="chip" style="display:none">
-    <b>ПКМ</b> взять тетрадь &nbsp;·&nbsp; <b>M</b> карта (тетради мигают) &nbsp;·&nbsp; <b>SHIFT</b> бег &nbsp;·&nbsp; <b>N</b> звук
+    <b>ПКМ</b> тетрадь &nbsp;·&nbsp; <b>SHIFT</b> бег (стамина!) &nbsp;·&nbsp; <b>M</b> карта &nbsp;·&nbsp; <b>N</b> звук
+  </div>
+  <div id="stamWrap">
+    <div id="stamLabel">STAMINA</div>
+    <div id="stamBar"><div id="stamFill"></div></div>
   </div>
   <div id="mapWrap"><div class="cap">SCHOOL MAP</div><canvas id="minimap"></canvas></div>
   <div id="toast"></div>
@@ -106,20 +119,20 @@
     <span class="doodle" style="top:40%;right:3%;font-size:44px;animation-duration:6.5s">A+</span>
     <div class="menuCol">
       <div class="title">HALL&nbsp;PASS</div>
-      <div class="tag">COLLECT <span>8 NOTEBOOKS</span> — THEN ESCAPE</div>
+      <div class="tag">COLLECT <span>8 NOTEBOOKS</span> — AND DON'T GET CAUGHT</div>
       <div class="paperCard">
         <div class="head">HOW TO PLAY</div>
         <div class="body">
-          <div class="ctl"><span>Look around</span><kbd>MOUSE</kbd></div>
           <div class="ctl"><span>Walk / run</span><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> + <kbd>SHIFT</kbd></span></div>
-          <div class="ctl"><span>Grab a notebook (stand close, look, right-click)</span><kbd>RMB</kbd></div>
-          <div class="ctl"><span>Notebooks blink on the school map</span><kbd>M</kbd></div>
-          <div class="note">Notebooks hide inside sealed <b>CLASS rooms</b> — look for red doors
-            with a <b>CLASS N</b> sign. All 8 → the <b>yellow door</b> in your starting classroom unlocks.</div>
+          <div class="ctl"><span>Grab a notebook (close + look + right-click)</span><kbd>RMB</kbd></div>
+          <div class="ctl"><span>Stamina drains when running; it only refills when you STAND STILL</span><span><i>планка снизу</i></span></div>
+          <div class="ctl"><span>After the first notebook… he starts walking. Each notebook makes him faster.</span><span><i>📏</i></span></div>
+          <div class="note">You can always outrun him — barely. Sealed <b>CLASS rooms</b> have red doors
+            with a CLASS sign. All 8 → the <b>yellow door</b> in your starting classroom unlocks.</div>
         </div>
       </div>
       <button class="bigBtn" id="startBtn">ENTER THE SCHOOL ➜</button>
-      <div class="soon">The principal is hiring… more classmates, chores and chaos coming soon.</div>
+      <div class="soon">Baldi model loads from <b>Files/baldi.glb</b> · walls/floor from <b>Files/</b></div>
     </div>
   </div>
 
@@ -142,6 +155,14 @@
     </div>
   </div>
 
+  <div id="caughtOverlay" class="overlay hidden">
+    <div class="menuCol">
+      <div class="title" style="color:#fff;text-shadow:4px 4px 0 #5a0d0d, 9px 9px 0 rgba(0,0,0,.4)">CAUGHT!</div>
+      <div id="caughtTag">Baldi got you.</div>
+      <button class="bigBtn" onclick="location.reload()">TRY AGAIN ➜</button>
+    </div>
+  </div>
+
 <script>
 window.addEventListener('error', function(e){
   var el=document.getElementById('toast');
@@ -150,10 +171,16 @@ window.addEventListener('error', function(e){
 </script>
 
 <script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
 </script>
 <script type="module">
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // ------------------------- config ---------------------------
 const M = 13, P = 3, W = 2;
@@ -162,6 +189,8 @@ const T = 1.6, H = 3.5;
 const HALF = F * T / 2;
 const EYE = 1.62;
 const NB_TOTAL = 8;
+const WALK_SP=4.3, RUN_SP=7.3;
+const BALDI_BASE=4.85, BALDI_PER_NB=0.5, BALDI_MAX=7.1;   // always slower than RUN_SP
 
 const tileCX = i => (i + 0.5) * T - HALF;
 const worldToTile = v => Math.floor((v + HALF) / T);
@@ -378,7 +407,6 @@ function tryPlace(x0,z0,w,h){
     for(const [i,j] of rect) selfForbid.add(i+j*F);
     const path=planCorridor(V, selfForbid);
     if(!path) continue;
-    // commit
     for(const [i,j] of rect) FG[i+j*F]=0;
     for(const [i,j] of [...D,...V]) FG[i+j*F]=0;
     digPath(path);
@@ -712,6 +740,7 @@ async function buildWorld(){
   await document.fonts.ready;
   buildDoors(); buildNotebooks(); buildExitDecor();
   buildBoards(); buildPosters(); buildDust();
+  await loadBaldi();
 }
 
 function buildFrames(dummy,col){
@@ -744,7 +773,7 @@ function makeDoor(cfg){
     lastRattle:-9, everOpened:false, panels:[]};
   const mat=new THREE.MeshLambertMaterial({
     map:cfg.isExit?yellowTex:woodTex,
-    color:cfg.isExit?0xffffff:0xd8845f});   // class doors are reddish
+    color:cfg.isExit?0xffffff:0xd8845f});
   const add=(hx,hz,u2,len)=>{
     const pivot=new THREE.Group(); pivot.position.set(hx,0,hz);
     const base=Math.atan2(-u2.z,u2.x); pivot.rotation.y=base;
@@ -760,7 +789,6 @@ function makeDoor(cfg){
     add(cfg.cx-u.x*sp/2, cfg.cz-u.z*sp/2, u, sp/2);
     add(cfg.cx+u.x*sp/2, cfg.cz+u.z*sp/2, {x:-u.x,z:-u.z}, sp/2);
   }
-  // sign above class doors
   if(cfg.label){
     const f={x:-cfg.nR.x, z:-cfg.nR.z};
     const m=new THREE.Mesh(new THREE.PlaneGeometry(1.5,0.55),
@@ -774,8 +802,9 @@ function makeDoor(cfg){
 function buildDoors(){ for(const cfg of doorDefs) doors.push(makeDoor(cfg)); }
 
 function updateDoors(dt,t){
-  // "people" who can trigger doors — future NPCs get pushed here too
+  // "people" who can trigger doors — Baldi is in this list too
   const actors=[{x:player.x,z:player.z}];
+  if(baldiActive) actors.push({x:baldi.x,z:baldi.z});
   blockedSet.clear();
   for(const b of staticBlocked) blockedSet.add(b);
   for(const d of doors){
@@ -789,8 +818,9 @@ function updateDoors(dt,t){
     if(d.isExit && !exitUnlocked){
       d.target=0;
       if(near && t-d.lastRattle>1.8){
-        d.lastRattle=t; sfxLocked(1);
-        toast(`Locked! You need all ${NB_TOTAL} notebooks (have ${nbGot})`);
+        d.lastRattle=t;
+        const isPlayer=Math.hypot(player.x-d.cx,player.z-d.cz)<d.touchR;
+        if(isPlayer){ sfxLocked(1); toast(`Locked! You need all ${NB_TOTAL} notebooks (have ${nbGot})`); }
       }
     }else if(d.isExit){
       if(near) d.target=1;
@@ -809,6 +839,140 @@ function updateDoors(dt,t){
     for(const p of d.panels) p.pivot.rotation.y=p.base+d.open*1.85*p.s;
     if(d.open<0.5) for(const tl of d.tiles) blockedSet.add(tl.i+tl.j*F);
   }
+}
+
+// --------------------------- BALDI ----------------------------
+let baldiGroup=null, baldiMixer=null, baldiActive=false;
+const baldi={x:0,z:0, stepT:0, lunge:0, from:null, to:null};
+const baldiSpeed=()=>Math.min(BALDI_MAX, BALDI_BASE+(nbGot-1)*BALDI_PER_NB);
+
+function buildFallbackBaldi(){
+  const g=new THREE.Group();
+  const skin=new THREE.MeshLambertMaterial({color:0xe8b98c});
+  const shirt=new THREE.MeshLambertMaterial({color:0x3f9e4d});
+  const pants=new THREE.MeshLambertMaterial({color:0x2d4a8a});
+  const legL=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.8,0.16),pants); legL.position.set(-0.11,0.4,0);
+  const legR=legL.clone(); legR.position.x=0.11;
+  const torso=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.72,0.26),shirt); torso.position.y=1.16;
+  const armL=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.66,0.12),shirt); armL.position.set(-0.33,1.18,0);
+  const armR=armL.clone(); armR.position.x=0.33;
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.21,16,12),skin); head.position.y=1.72;
+  const ruler=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.62,0.12),
+    new THREE.MeshLambertMaterial({color:0xb07a3c}));
+  ruler.position.set(0.37,0.72,0.1);
+  g.add(legL,legR,torso,armL,armR,head,ruler);
+  return g;
+}
+async function loadBaldi(){
+  baldiGroup=new THREE.Group(); baldiGroup.visible=false; scene.add(baldiGroup);
+  try{
+    const gltf=await new Promise((res,rej)=>
+      new GLTFLoader().load('Files/baldi.glb',res,undefined,rej));
+    const m=gltf.scene;
+    const box=new THREE.Box3().setFromObject(m);
+    const size=new THREE.Vector3(); box.getSize(size);
+    m.scale.setScalar(2.05/Math.max(size.y,0.001));
+    const box2=new THREE.Box3().setFromObject(m);
+    m.position.y-=box2.min.y;
+    baldiGroup.add(m);
+    if(gltf.animations&&gltf.animations.length){
+      baldiMixer=new THREE.AnimationMixer(m);
+      baldiMixer.clipAction(gltf.animations[0]).play();
+    }
+    console.log('[HALL PASS] baldi.glb loaded');
+  }catch(e){
+    console.warn('[HALL PASS] baldi.glb not found, using fallback model');
+    toast("Files/baldi.glb not found — using built-in Baldi");
+    baldiGroup.add(buildFallbackBaldi());
+  }
+}
+function baldiNextTile(){
+  const si=worldToTile(baldi.x), sj=worldToTile(baldi.z);
+  const ti=worldToTile(player.x), tj=worldToTile(player.z);
+  const start=si+sj*F, goal=ti+tj*F;
+  if(start===goal) return null;
+  const N=F*F, par=new Int32Array(N).fill(-1), vis=new Uint8Array(N), q=[start];
+  vis[start]=1; let head=0, found=-1;
+  while(head<q.length){
+    const c=q[head++];
+    if(c===goal){found=c;break;}
+    const ci=c%F, cj=(c/F)|0;
+    for(const [dx,dy] of DIRS){
+      const ni=ci+dx, nj=cj+dy;
+      if(ni<0||nj<0||ni>=F||nj>=F) continue;
+      const n=ni+nj*F;
+      if(vis[n]||FG[n]===1) continue;   // Baldi walks through door tiles (he opens them)
+      vis[n]=1; par[n]=c; q.push(n);
+    }
+  }
+  if(found<0) return null;
+  let cur=found;
+  while(par[cur]!==-1 && par[cur]!==start) cur=par[cur];
+  return {i:cur%F, j:(cur/F)|0};
+}
+function activateBaldi(){
+  if(baldiActive) return;
+  baldiActive=true;
+  // spawn on the walkable tile farthest from the player
+  const pi=worldToTile(player.x), pj=worldToTile(player.z);
+  const N=F*F, dA=new Int32Array(N).fill(-1), q=[pi+pj*F]; dA[q[0]]=0;
+  let head=0, far=q[0];
+  while(head<q.length){
+    const c=q[head++]; far=c;
+    const ci=c%F, cj=(c/F)|0;
+    for(const [dx,dy] of DIRS){
+      const ni=ci+dx,nj=cj+dy;
+      if(ni<0||nj<0||ni>=F||nj>=F) continue;
+      const n=ni+nj*F;
+      if(dA[n]===-1&&FG[n]===0){dA[n]=dA[c]+1;q.push(n);}
+    }
+  }
+  baldi.x=tileCX(far%F); baldi.z=tileCX((far/F)|0);
+  if(baldiGroup){ baldiGroup.position.set(baldi.x,0,baldi.z); baldiGroup.visible=true; }
+  sfxBaldiSpawn();
+  toast('THWACK… someone heard you take that notebook.');
+}
+function updateBaldi(dt){
+  if(!baldiActive||!baldiGroup) return;
+  const interval=T/baldiSpeed();
+  if(baldi.lunge>0){
+    baldi.lunge=Math.min(1,baldi.lunge+dt/0.16);
+    const a=baldi.lunge;
+    baldi.x=baldi.from.x+(baldi.to.x-baldi.from.x)*a;
+    baldi.z=baldi.from.z+(baldi.to.z-baldi.from.z)*a;
+    baldiGroup.position.set(baldi.x, Math.sin(a*Math.PI)*0.1, baldi.z);
+    if(a>=1) baldi.lunge=0;
+  }else{
+    baldi.stepT+=dt;
+    if(baldi.stepT>=interval){
+      baldi.stepT=0;
+      const next=baldiNextTile();
+      if(next){
+        baldi.from={x:baldi.x,z:baldi.z};
+        baldi.to={x:tileCX(next.i), z:tileCX(next.j)};
+        baldi.lunge=0.0001;
+        const d=Math.hypot(player.x-baldi.x,player.z-baldi.z);
+        sfxSlap(clamp(1.3/(1+d*0.045),0.05,1));
+        emitNoise(baldi.x,baldi.z,15);
+      }else{
+        baldi.x+=(player.x-baldi.x)*0.4;
+        baldi.z+=(player.z-baldi.z)*0.4;
+        baldiGroup.position.set(baldi.x,0,baldi.z);
+      }
+    }
+  }
+  baldiGroup.lookAt(player.x, baldiGroup.position.y, player.z);
+  if(baldiMixer) baldiMixer.update(dt);
+  if(Math.hypot(player.x-baldi.x,player.z-baldi.z)<0.85) caught();
+}
+function caught(){
+  if(state!=='play') return;
+  state='caught';
+  sfxCaught();
+  document.getElementById('caughtTag').textContent=
+    `Baldi got you with ${nbGot}/${NB_TOTAL} notebooks`;
+  document.getElementById('caughtOverlay').classList.remove('hidden');
+  if(document.exitPointerLock) document.exitPointerLock();
 }
 
 // ------------------------- notebooks --------------------------
@@ -843,8 +1007,9 @@ function tryCollect(){
     best.collected=true; best.anim=0; nbGot++;
     sfxCollect(); emitNoise(best.x,best.z,6);
     nbChip.textContent=`📓 NOTEBOOKS ${nbGot} / ${NB_TOTAL}`;
+    if(nbGot===1) activateBaldi();
     if(nbGot>=notebooks.length) unlockExit();
-    else toast(`Notebook ${nbGot} / ${notebooks.length} — keep looking!`);
+    else toast(`Notebook ${nbGot} / ${notebooks.length} — ${nbGot===1?'RUN.':'keep looking!'}`);
   }
 }
 
@@ -924,6 +1089,7 @@ function buildDust(){
 // ------------------------- player -----------------------------
 const player={x:0,z:0,yaw:rng()*Math.PI*2,pitch:0,vx:0,vz:0,phase:0,step:0};
 let introT=1;
+let stamina=100, exhausted=false;
 function spawn(){
   const c=roomCenters[0];
   player.x=c.x; player.z=c.z; player.vx=player.vz=0;
@@ -955,6 +1121,14 @@ function tryMove(px,pz,dx,dz){
     }
   }
   return [nx,nz];
+}
+const stamWrap=document.getElementById('stamWrap'),
+      stamFill=document.getElementById('stamFill'),
+      stamLabel=document.getElementById('stamLabel');
+function updateStamBar(){
+  stamFill.style.width=stamina+'%';
+  stamWrap.classList.toggle('exhausted',exhausted);
+  stamLabel.textContent=exhausted?'TIRED!':'STAMINA';
 }
 
 const keys={};
@@ -1043,6 +1217,9 @@ const sfxLocked=v=>{ beep('square',150,110,0.07,0.12*v); beep('square',135,100,0
 const sfxUnlock=()=>{ noiseHit(0.04,0.2,2400,'highpass'); beep('triangle',660,990,0.13,0.22,0.06); };
 const sfxCollect=()=>{ beep('triangle',740,740,0.09,0.22); beep('triangle',1180,1180,0.15,0.22,0.09); };
 const sfxWin=()=>{ [523,659,784,1046].forEach((f,i)=>beep('triangle',f,f,0.17,0.25,i*0.13)); };
+const sfxSlap=v=>{ noiseHit(0.055,0.5*v,850,'bandpass'); beep('square',195,110,0.06,0.16*v,0.012); };
+const sfxBaldiSpawn=()=>{ beep('sine',95,38,0.6,0.4); noiseHit(0.45,0.25,260); };
+const sfxCaught=()=>{ noiseHit(0.5,0.6,320); beep('sawtooth',420,55,0.75,0.5); };
 function toggleSound(){
   muted=!muted;
   if(master) master.gain.linearRampToValueAtTime(muted?0:0.6,(actx?.currentTime||0)+0.15);
@@ -1077,6 +1254,11 @@ function drawMinimap(t){
     mg.fillStyle=`rgba(255,210,63,${blink})`;
     mg.beginPath(); mg.arc((nb.x+HALF)/T*s,(nb.z+HALF)/T*s,3,0,7); mg.fill();
   }
+  if(baldiActive){
+    const blink=0.6+0.4*Math.sin(t*8);
+    mg.fillStyle=`rgba(225,75,60,${blink})`;
+    mg.beginPath(); mg.arc((baldi.x+HALF)/T*s,(baldi.z+HALF)/T*s,3.4,0,7); mg.fill();
+  }
   if(exitData){
     mg.fillStyle=exitUnlocked?'#ffd23f':'#a8842a';
     mg.fillRect((exitData.cx+HALF)/T*s-2.5,(exitData.cz+HALF)/T*s-2.5,5,5);
@@ -1100,9 +1282,10 @@ document.getElementById('startBtn').addEventListener('click',()=>{
   state='play'; audioOn();
   document.getElementById('startOverlay').classList.add('hidden');
   ['locChip','hintChip','nbChip'].forEach(id=>document.getElementById(id).style.display='block');
+  stamWrap.style.display='block';
   nbChip.textContent=`📓 NOTEBOOKS 0 / ${NB_TOTAL}`;
   introT=0; setTimeout(requestLock,60);
-  setTimeout(()=>toast(genWarning || `School built: ${nbRooms.length}/${NB_TOTAL} notebook rooms hidden. Press M to hunt!`),1200);
+  setTimeout(()=>toast(genWarning || `School built: ${nbRooms.length}/${NB_TOTAL} notebook rooms. Press M to hunt!`),1200);
 });
 const locLabel=document.getElementById('locLabel'),locSub=document.getElementById('locSub');
 const visitedRooms=new Set(); let lastLoc='';
@@ -1127,7 +1310,7 @@ function win(){
 
 window.HALLPASS={ THREE, scene, camera,
   grid:{F,T,HALF,solidTile,isWallTile,tileCX},
-  rooms, roomCenters, nbRooms, notebooks, doors, player, emitNoise, onNoise:null };
+  rooms, roomCenters, nbRooms, notebooks, doors, player, baldi, emitNoise, onNoise:null };
 
 // ------------------------- main loop --------------------------
 const clock=new THREE.Clock();
@@ -1141,7 +1324,8 @@ function animate(){
     camera.position.set(player.x,EYE+Math.sin(t*0.6)*0.04,player.z);
     camera.rotation.set(Math.sin(t*0.4)*0.03,menuYaw,0);
   }else if(state==='play'){
-    let fx=0,fz=0;
+    let fx=0,fz=0,sp=WALK_SP;
+    let movingInput=false;
     if(locked){
       const fX=-Math.sin(player.yaw),fZ=-Math.cos(player.yaw);
       const rX=Math.cos(player.yaw),rZ=-Math.sin(player.yaw);
@@ -1151,29 +1335,39 @@ function animate(){
       if(keys.KeyD||keys.ArrowRight){mx+=rX;mz+=rZ;}
       if(keys.KeyA||keys.ArrowLeft){mx-=rX;mz-=rZ;}
       const len=Math.hypot(mx,mz);
-      const run=keys.ShiftLeft||keys.ShiftRight;
-      const sp=run?7.3:4.3;
+      movingInput=len>0;
+      const wantRun=keys.ShiftLeft||keys.ShiftRight;
+      if(movingInput&&wantRun&&!exhausted&&stamina>0){
+        sp=RUN_SP;
+        stamina=Math.max(0,stamina-26*dt);
+        if(stamina<=0) exhausted=true;
+      }else if(!movingInput){
+        stamina=Math.min(100,stamina+16*dt);
+        if(exhausted&&stamina>=25) exhausted=false;
+      }
       if(len>0){fx=mx/len*sp;fz=mz/len*sp;}
     }
+    updateStamBar();
     const k=1-Math.exp(-12*dt);
     player.vx+=(fx-player.vx)*k; player.vz+=(fz-player.vz)*k;
     const [nx,nz]=tryMove(player.x,player.z,player.vx*dt,player.vz*dt);
     player.x=nx; player.z=nz;
 
     updateDoors(dt,t);
+    if(locked) updateBaldi(dt);
 
-    const sp=Math.hypot(player.vx,player.vz);
-    if(sp>0.4){
-      player.phase+=dt*sp*2.1;
+    const spd=Math.hypot(player.vx,player.vz);
+    if(spd>0.4){
+      player.phase+=dt*spd*2.1;
       const s=Math.floor(player.phase/Math.PI);
-      if(s!==player.step){player.step=s;footstep(Math.min(1,sp/7));}
+      if(s!==player.step){player.step=s;footstep(Math.min(1,spd/7));}
     }
-    const bob=Math.sin(player.phase)*(0.024+sp*0.004);
+    const bob=Math.sin(player.phase)*(0.024+spd*0.004);
     introT=Math.min(1,introT+dt/0.7);
     const drop=(1-introT)*(1-introT)*0.6;
     camera.position.set(player.x,EYE+bob+drop,player.z);
     camera.rotation.set(player.pitch,player.yaw,0);
-    const fovT=(keys.ShiftLeft||keys.ShiftRight)&&sp>1?80:74;
+    const fovT=(sp===RUN_SP&&spd>1)?80:74;
     camera.fov+=(fovT-camera.fov)*Math.min(1,dt*6); camera.updateProjectionMatrix();
 
     for(const nb of notebooks){
