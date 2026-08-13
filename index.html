@@ -19,6 +19,8 @@
   #game canvas{display:block}
   #vignette{position:fixed;inset:0;pointer-events:none;z-index:5;
     background:radial-gradient(ellipse at 50% 45%, transparent 52%, rgba(8,20,14,.42) 100%)}
+  #danger{position:fixed;inset:0;pointer-events:none;z-index:6;opacity:0;transition:opacity .25s;
+    box-shadow:inset 0 0 150px 55px rgba(200,25,20,.6)}
   #cross{position:fixed;left:50%;top:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;
     border-radius:50%;background:#fff;mix-blend-mode:difference;z-index:8;pointer-events:none;
     box-shadow:0 0 0 3px rgba(255,255,255,.35)}
@@ -34,6 +36,9 @@
   @keyframes pulseRed{from{transform:translateX(-50%) scale(1)}to{transform:translateX(-50%) scale(1.09)}}
   #hintChip{bottom:14px;left:14px;font-size:12.5px;opacity:.92}
   #hintChip b{color:var(--red)}
+  #baldiChip{bottom:14px;right:14px;display:none}
+  #baldiChip.hunt{background:var(--red);color:#fff;animation:pulseB .5s ease-in-out infinite alternate}
+  @keyframes pulseB{from{transform:scale(1)}to{transform:scale(1.07)}}
   #stamWrap{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9;display:none;text-align:center}
   #stamLabel{font-family:"Luckiest Guy";font-size:13px;color:var(--chalk);
     text-shadow:2px 2px 0 rgba(0,0,0,.55);letter-spacing:2px;margin-bottom:3px}
@@ -41,7 +46,7 @@
     box-shadow:3px 3px 0 rgba(0,0,0,.4);border-radius:8px;overflow:hidden}
   #stamFill{height:100%;width:100%;background:#5fd068}
   #stamWrap.exhausted #stamFill{background:var(--red)}
-  #stamWrap.exhausted #stamLabel{color:var(--red);animation:pulseRed .35s ease-in-out infinite alternate;transform:none}
+  #stamWrap.exhausted #stamLabel{color:var(--red)}
   #mapWrap{position:fixed;top:14px;right:14px;z-index:9;display:none}
   #mapWrap .cap{font-family:"Luckiest Guy";text-align:center;color:var(--yellow);
     text-shadow:2px 2px 0 rgba(0,0,0,.5);font-size:14px;letter-spacing:1px;margin-bottom:4px}
@@ -93,6 +98,7 @@
 <body>
   <div id="game"></div>
   <div id="vignette"></div>
+  <div id="danger"></div>
   <div id="cross" style="display:none"></div>
 
   <div id="locChip" class="chip" style="display:none">
@@ -103,6 +109,7 @@
   <div id="hintChip" class="chip" style="display:none">
     <b>ПКМ</b> тетрадь &nbsp;·&nbsp; <b>SHIFT</b> бег (стамина!) &nbsp;·&nbsp; <b>M</b> карта &nbsp;·&nbsp; <b>N</b> звук
   </div>
+  <div id="baldiChip" class="chip">😴 Baldi sleeps…</div>
   <div id="stamWrap">
     <div id="stamLabel">STAMINA</div>
     <div id="stamBar"><div id="stamFill"></div></div>
@@ -123,12 +130,12 @@
       <div class="paperCard">
         <div class="head">HOW TO PLAY</div>
         <div class="body">
-          <div class="ctl"><span>Walk / run</span><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> + <kbd>SHIFT</kbd></span></div>
+          <div class="ctl"><span>Baldi is already somewhere in the school (grey dot on the map). Don't wake him up.</span><span><i>😴</i></span></div>
+          <div class="ctl"><span>The first notebook wakes him. Each next one makes him faster.</span><span><i>📏</i></span></div>
+          <div class="ctl"><span>Walk / run (stamina refills only when standing still)</span><span><kbd>WASD</kbd> <kbd>SHIFT</kbd></span></div>
           <div class="ctl"><span>Grab a notebook (close + look + right-click)</span><kbd>RMB</kbd></div>
-          <div class="ctl"><span>Stamina drains when running; it only refills when you STAND STILL</span><span><i>планка снизу</i></span></div>
-          <div class="ctl"><span>After the first notebook… he starts walking. Each notebook makes him faster.</span><span><i>📏</i></span></div>
-          <div class="note">You can always outrun him — barely. Sealed <b>CLASS rooms</b> have red doors
-            with a CLASS sign. All 8 → the <b>yellow door</b> in your starting classroom unlocks.</div>
+          <div class="note">Sealed <b>CLASS rooms</b> have red doors with a CLASS sign. All 8 notebooks →
+            the <b>yellow door</b> in your starting classroom unlocks. You can always outrun him — barely.</div>
         </div>
       </div>
       <button class="bigBtn" id="startBtn">ENTER THE SCHOOL ➜</button>
@@ -190,7 +197,7 @@ const HALF = F * T / 2;
 const EYE = 1.62;
 const NB_TOTAL = 8;
 const WALK_SP=4.3, RUN_SP=7.3;
-const BALDI_BASE=4.85, BALDI_PER_NB=0.5, BALDI_MAX=7.1;   // always slower than RUN_SP
+const BALDI_BASE=4.85, BALDI_PER_NB=0.5, BALDI_MAX=7.1;
 
 const tileCX = i => (i + 0.5) * T - HALF;
 const worldToTile = v => Math.floor((v + HALF) / T);
@@ -379,7 +386,7 @@ function digPath(path){
   }
 }
 
-// ---- 8 sealed CLASS rooms: deterministic full-grid scan ----
+// ---- 8 sealed CLASS rooms ----
 const nbRooms=[];
 const globalForbidden=new Set();
 
@@ -460,7 +467,7 @@ function genNotebookRooms(){
     genWarning=`Only ${nbRooms.length}/${NB_TOTAL} notebook rooms fit this building — refresh for a new school.`;
 }
 
-// ------------- yellow double EXIT door in start room -----------
+// ------------- yellow double EXIT door -------------
 function bestEdgeRun(x0,z0,x1,z1){
   const edges=[
     {axis:'z', line:z0-1, from:x0, to:x1, rot:0,          off:+0.03},
@@ -680,12 +687,10 @@ function loadTex(url,fallback,label){
   });
 }
 
-// ---------------- run generation before building --------------
 genMap();
 genNotebookRooms();
 setupExit();
 
-// --------------------- world building ------------------------
 const flickerMats=[], panelSpots=[], doors=[], notebooks=[];
 let woodTex, yellowTex;
 
@@ -741,6 +746,7 @@ async function buildWorld(){
   buildDoors(); buildNotebooks(); buildExitDecor();
   buildBoards(); buildPosters(); buildDust();
   await loadBaldi();
+  placeBaldiDormant();   // Baldi stands in the far corner from the very start
 }
 
 function buildFrames(dummy,col){
@@ -802,7 +808,6 @@ function makeDoor(cfg){
 function buildDoors(){ for(const cfg of doorDefs) doors.push(makeDoor(cfg)); }
 
 function updateDoors(dt,t){
-  // "people" who can trigger doors — Baldi is in this list too
   const actors=[{x:player.x,z:player.z}];
   if(baldiActive) actors.push({x:baldi.x,z:baldi.z});
   blockedSet.clear();
@@ -842,7 +847,7 @@ function updateDoors(dt,t){
 }
 
 // --------------------------- BALDI ----------------------------
-let baldiGroup=null, baldiMixer=null, baldiActive=false;
+let baldiGroup=null, baldiMixer=null, baldiActive=false, baldiExists=false;
 const baldi={x:0,z:0, stepT:0, lunge:0, from:null, to:null};
 const baldiSpeed=()=>Math.min(BALDI_MAX, BALDI_BASE+(nbGot-1)*BALDI_PER_NB);
 
@@ -886,6 +891,38 @@ async function loadBaldi(){
     baldiGroup.add(buildFallbackBaldi());
   }
 }
+function placeBaldiDormant(){
+  // farthest walkable tile from the player = Baldi's corner
+  const pi=worldToTile(player.x), pj=worldToTile(player.z);
+  const N=F*F, dA=new Int32Array(N).fill(-1), q=[pi+pj*F]; dA[q[0]]=0;
+  let head=0, far=q[0];
+  while(head<q.length){
+    const c=q[head++]; far=c;
+    const ci=c%F, cj=(c/F)|0;
+    for(const [dx,dy] of DIRS){
+      const ni=ci+dx,nj=cj+dy;
+      if(ni<0||nj<0||ni>=F||nj>=F) continue;
+      const n=ni+nj*F;
+      if(dA[n]===-1&&FG[n]===0){dA[n]=dA[c]+1;q.push(n);}
+    }
+  }
+  baldi.x=tileCX(far%F); baldi.z=tileCX((far/F)|0);
+  if(baldiGroup){
+    baldiGroup.position.set(baldi.x,0,baldi.z);
+    baldiGroup.lookAt(player.x,0,player.z);
+    baldiGroup.visible=true;
+  }
+  baldiExists=true;
+  console.log('[HALL PASS] Baldi placed at', baldi.x.toFixed(1), baldi.z.toFixed(1));
+}
+function activateBaldi(){
+  if(baldiActive) return;
+  if(!baldiExists) placeBaldiDormant();
+  baldiActive=true;
+  sfxBaldiSpawn();
+  toast('THWACK! Baldi woke up — RUN.');
+  console.log('[HALL PASS] Baldi is now hunting');
+}
 function baldiNextTile(){
   const si=worldToTile(baldi.x), sj=worldToTile(baldi.z);
   const ti=worldToTile(player.x), tj=worldToTile(player.z);
@@ -901,7 +938,7 @@ function baldiNextTile(){
       const ni=ci+dx, nj=cj+dy;
       if(ni<0||nj<0||ni>=F||nj>=F) continue;
       const n=ni+nj*F;
-      if(vis[n]||FG[n]===1) continue;   // Baldi walks through door tiles (he opens them)
+      if(vis[n]||FG[n]===1) continue;
       vis[n]=1; par[n]=c; q.push(n);
     }
   }
@@ -909,28 +946,6 @@ function baldiNextTile(){
   let cur=found;
   while(par[cur]!==-1 && par[cur]!==start) cur=par[cur];
   return {i:cur%F, j:(cur/F)|0};
-}
-function activateBaldi(){
-  if(baldiActive) return;
-  baldiActive=true;
-  // spawn on the walkable tile farthest from the player
-  const pi=worldToTile(player.x), pj=worldToTile(player.z);
-  const N=F*F, dA=new Int32Array(N).fill(-1), q=[pi+pj*F]; dA[q[0]]=0;
-  let head=0, far=q[0];
-  while(head<q.length){
-    const c=q[head++]; far=c;
-    const ci=c%F, cj=(c/F)|0;
-    for(const [dx,dy] of DIRS){
-      const ni=ci+dx,nj=cj+dy;
-      if(ni<0||nj<0||ni>=F||nj>=F) continue;
-      const n=ni+nj*F;
-      if(dA[n]===-1&&FG[n]===0){dA[n]=dA[c]+1;q.push(n);}
-    }
-  }
-  baldi.x=tileCX(far%F); baldi.z=tileCX((far/F)|0);
-  if(baldiGroup){ baldiGroup.position.set(baldi.x,0,baldi.z); baldiGroup.visible=true; }
-  sfxBaldiSpawn();
-  toast('THWACK… someone heard you take that notebook.');
 }
 function updateBaldi(dt){
   if(!baldiActive||!baldiGroup) return;
@@ -1032,7 +1047,6 @@ function buildExitDecor(){
   scene.add(pl);
 }
 
-// --------------------- boards / posters -----------------------
 function placeBoard(x0,z0,x1,z1,title){
   const e=bestEdgeRun(x0,z0,x1,z1); if(!e) return;
   const wpx=Math.min(e.best*T*0.86,7);
@@ -1254,10 +1268,13 @@ function drawMinimap(t){
     mg.fillStyle=`rgba(255,210,63,${blink})`;
     mg.beginPath(); mg.arc((nb.x+HALF)/T*s,(nb.z+HALF)/T*s,3,0,7); mg.fill();
   }
-  if(baldiActive){
-    const blink=0.6+0.4*Math.sin(t*8);
-    mg.fillStyle=`rgba(225,75,60,${blink})`;
-    mg.beginPath(); mg.arc((baldi.x+HALF)/T*s,(baldi.z+HALF)/T*s,3.4,0,7); mg.fill();
+  if(baldiExists){
+    const bx=(baldi.x+HALF)/T*s, bz=(baldi.z+HALF)/T*s;
+    const blink=baldiActive ? 0.55+0.45*Math.sin(t*8) : 0.9;
+    mg.fillStyle=baldiActive?`rgba(225,60,45,${blink})`:'rgba(150,150,150,.9)';
+    mg.beginPath(); mg.arc(bx,bz,4,0,7); mg.fill();
+    mg.fillStyle=baldiActive?'#ff8a75':'#bbb';
+    mg.font='bold 9px "Comic Neue"'; mg.fillText('B', bx-3, bz-6);
   }
   if(exitData){
     mg.fillStyle=exitUnlocked?'#ffd23f':'#a8842a';
@@ -1272,20 +1289,34 @@ function drawMinimap(t){
 }
 
 // ---------------------------- UI ------------------------------
-const toastEl=document.getElementById('toast'),nbChip=document.getElementById('nbChip');
+const toastEl=document.getElementById('toast'),nbChip=document.getElementById('nbChip'),
+      baldiChip=document.getElementById('baldiChip'),dangerEl=document.getElementById('danger');
 let toastTimer;
 function toast(msg){
   toastEl.textContent=msg; toastEl.classList.add('show');
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2800);
 }
+function updateBaldiHUD(){
+  if(!baldiExists){ return; }
+  const d=Math.hypot(player.x-baldi.x,player.z-baldi.z);
+  if(!baldiActive){
+    baldiChip.classList.remove('hunt');
+    baldiChip.textContent=`😴 Baldi sleeps ${d.toFixed(0)} m away… don't take notebooks`;
+    dangerEl.style.opacity=0;
+  }else{
+    baldiChip.classList.add('hunt');
+    baldiChip.textContent=`📏 BALDI: ${d.toFixed(0)} m · speed ${baldiSpeed().toFixed(1)}`;
+    dangerEl.style.opacity = d<14 ? (clamp((14-d)/14,0,1)*0.85).toFixed(2) : 0;
+  }
+}
 document.getElementById('startBtn').addEventListener('click',()=>{
   state='play'; audioOn();
   document.getElementById('startOverlay').classList.add('hidden');
-  ['locChip','hintChip','nbChip'].forEach(id=>document.getElementById(id).style.display='block');
+  ['locChip','hintChip','nbChip','baldiChip'].forEach(id=>document.getElementById(id).style.display='block');
   stamWrap.style.display='block';
   nbChip.textContent=`📓 NOTEBOOKS 0 / ${NB_TOTAL}`;
   introT=0; setTimeout(requestLock,60);
-  setTimeout(()=>toast(genWarning || `School built: ${nbRooms.length}/${NB_TOTAL} notebook rooms. Press M to hunt!`),1200);
+  setTimeout(()=>toast(genWarning || `School built: ${nbRooms.length}/${NB_TOTAL} notebook rooms. Press M — Baldi is the grey "B" dot.`),1200);
 });
 const locLabel=document.getElementById('locLabel'),locSub=document.getElementById('locSub');
 const visitedRooms=new Set(); let lastLoc='';
@@ -1355,6 +1386,7 @@ function animate(){
 
     updateDoors(dt,t);
     if(locked) updateBaldi(dt);
+    updateBaldiHUD();
 
     const spd=Math.hypot(player.vx,player.vz);
     if(spd>0.4){
