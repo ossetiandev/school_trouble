@@ -135,10 +135,10 @@
         <div class="body">
           <div class="ctl"><span>Baldi wakes up after your first notebook. Each next one makes him faster.</span><span><i>📏</i></span></div>
           <div class="ctl"><span>Run (stamina refills only when standing still)</span><span><kbd>SHIFT</kbd></span></div>
-          <div class="ctl"><span>Water machines in the middle of the school: press E → +50 stamina</span><kbd>E</kbd></div>
+          <div class="ctl"><span>Water machines (blue beams, "W" on the map): press E → +50 stamina</span><kbd>E</kbd></div>
           <div class="ctl"><span>Grab notebooks (close + look + right-click)</span><kbd>RMB</kbd></div>
           <div class="note">Sealed <b>CLASS rooms</b> have red doors with a CLASS sign. All 8 notebooks →
-            the <b>yellow door</b> in your starting classroom unlocks. Water machines glow cyan on the map (M).</div>
+            the <b>yellow door</b> in your starting classroom unlocks.</div>
         </div>
       </div>
       <button class="bigBtn" id="startBtn">ENTER THE SCHOOL ➜</button>
@@ -870,29 +870,47 @@ function updateDoors(dt,t){
 
 // --------------------- water machines -------------------------
 let nearMachine=null;
-function buildWaterMachines(){
-  const c=(F-1)/2, rad=Math.floor(F*0.22);
-  const cands=[];
+function gatherMachineSpots(c, rad, minOpen){
+  const list=[];
   for(let j=2;j<F-2;j++)for(let i=2;i<F-2;i++){
     if(FG[i+j*F]!==0) continue;
     if(Math.abs(i-c)>rad||Math.abs(j-c)>rad) continue;
     if(staticBlocked.has(i+j*F)) continue;
-    let openN=0; const walls=[];
+    let openN=0; const walls=[], fl=[];
     for(let s=0;s<4;s++){
       const dx=DIRS[s][0], dy=DIRS[s][1];
-      if(FG[i+dx+(j+dy)*F]===0) openN++; else walls.push(s);
+      if(FG[i+dx+(j+dy)*F]===0){openN++;fl.push(s);}else walls.push(s);
     }
-    if(openN<3 || !walls.length) continue;
-    cands.push({i,j,side:walls[0],distC:Math.hypot(i-c,j-c)});
+    if(!walls.length||openN<minOpen) continue;
+    if(minOpen<3 && openN===2 && Math.abs(fl[0]-fl[1])===2) continue; // don't plug a narrow corridor
+    list.push({i,j,side:walls[0],distC:Math.hypot(i-c,j-c)});
   }
-  cands.sort((a,b)=>a.distC-b.distC);
-  const chosen=[];
-  for(const cd of cands){
-    if(chosen.length>=3) break;
-    if(chosen.some(p=>Math.hypot(p.i-cd.i,p.j-cd.j)<8)) continue;
-    chosen.push(cd);
+  list.sort((a,b)=>a.distC-b.distC);
+  const out=[];
+  for(const cd of list){
+    if(out.length>=3) break;
+    if(out.some(p=>Math.hypot(p.i-cd.i,p.j-cd.j)<7)) continue;
+    out.push(cd);
+  }
+  return out;
+}
+function buildWaterMachines(){
+  const c=(F-1)/2;
+  let chosen=[];
+  for(const rad of [Math.floor(F*0.3), Math.floor(F*0.45), Math.floor(F*0.7), F]){
+    chosen=gatherMachineSpots(c,rad,3);
+    if(chosen.length<3){
+      const alt=gatherMachineSpots(c,rad,2);
+      if(alt.length>chosen.length) chosen=alt;
+    }
+    if(chosen.length<2 && rad===F){
+      const last=gatherMachineSpots(c,F,1);
+      if(last.length>chosen.length) chosen=last;
+    }
+    if(chosen.length>=2) break;
   }
   const bodyMat=new THREE.MeshLambertMaterial({color:0x2a5db0});
+  const beamGeo=new THREE.PlaneGeometry(0.42,H-1.9);
   for(const cd of chosen){
     const wd=DIRS[cd.side];
     const f={x:-wd[0], z:-wd[1]};
@@ -904,11 +922,20 @@ function buildWaterMachines(){
     const frontMat=new THREE.MeshBasicMaterial({map:waterTex});
     const front=new THREE.Mesh(new THREE.PlaneGeometry(0.94,1.82),frontMat);
     front.position.set(0,0.98,0.285); g.add(front);
+    // glowing beacon column up to the ceiling
+    const beamMat=new THREE.MeshBasicMaterial({color:0x7fd8ff,transparent:true,opacity:0.22,
+      depthWrite:false,side:THREE.DoubleSide});
+    const b1=new THREE.Mesh(beamGeo,beamMat); b1.position.y=1.95+(H-1.9)/2; g.add(b1);
+    const b2=new THREE.Mesh(beamGeo,beamMat); b2.position.y=b1.position.y; b2.rotation.y=Math.PI/2; g.add(b2);
     scene.add(g);
+    const pl=new THREE.PointLight(0x66ccff,0.9,7,2);
+    pl.position.set(g.position.x, 2.1, g.position.z); scene.add(pl);
     staticBlocked.add(cd.i+cd.j*F);
-    machines.push({x:g.position.x, z:g.position.z, mat:frontMat, cooldown:0, flash:0, seed:rng()*7});
+    machines.push({x:g.position.x, z:g.position.z, mat:frontMat, beam:beamMat,
+      cooldown:0, flash:0, seed:rng()*7, i:cd.i, j:cd.j});
   }
-  console.log(`[HALL PASS] water machines placed: ${machines.length}`);
+  console.log(`[HALL PASS] water machines placed: ${machines.length} at tiles:`,
+    machines.map(m=>`(${m.i},${m.j})`).join(' '));
 }
 function useMachine(){
   if(!nearMachine) return;
@@ -927,10 +954,10 @@ function updateMachines(dt,t){
     m.flash=Math.max(0,m.flash-dt);
     const d=Math.hypot(player.x-m.x,player.z-m.z);
     if(d<2.1) nearMachine=m;
-    // idle glow pulse / flash on use
     const pulse=0.82+0.18*Math.sin(t*3+m.seed);
-    const v=m.flash>0 ? 1.6 : (m.cooldown>0 ? 0.45 : pulse);
-    m.mat.color.setRGB(Math.min(v,1.2), Math.min(v,1.2), Math.min(v,1.2));
+    const v=m.flash>0 ? 1.4 : (m.cooldown>0 ? 0.45 : pulse);
+    m.mat.color.setRGB(Math.min(v,1.3), Math.min(v,1.3), Math.min(v,1.3));
+    m.beam.opacity=(m.cooldown>0?0.08:0.14+0.1*Math.sin(t*2+m.seed))+(m.flash>0?0.3:0);
   }
   usePrompt.style.display=(nearMachine && locked)?'block':'none';
 }
@@ -1360,8 +1387,13 @@ function drawMinimap(t){
     mg.beginPath(); mg.arc((nb.x+HALF)/T*s,(nb.z+HALF)/T*s,3,0,7); mg.fill();
   }
   for(const m of machines){
-    mg.fillStyle=m.cooldown>0?'rgba(80,160,200,.5)':'#57c7ff';
-    mg.fillRect((m.x+HALF)/T*s-2.2,(m.z+HALF)/T*s-2.2,4.4,4.4);
+    const mx=(m.x+HALF)/T*s, mz=(m.z+HALF)/T*s;
+    const ready=m.cooldown<=0;
+    mg.fillStyle=ready?'#57c7ff':'rgba(90,150,190,.45)';
+    mg.beginPath(); mg.arc(mx,mz,4.5,0,7); mg.fill();
+    mg.strokeStyle='#e8f7ff'; mg.lineWidth=1.2; mg.stroke();
+    mg.fillStyle='#08304d'; mg.font='bold 7px "Comic Neue"'; mg.textAlign='center';
+    mg.fillText('W',mx,mz+2.5); mg.textAlign='left';
   }
   if(baldiExists){
     const bx=(baldi.x+HALF)/T*s, bz=(baldi.z+HALF)/T*s;
@@ -1412,7 +1444,8 @@ document.getElementById('startBtn').addEventListener('click',()=>{
   stamWrap.style.display='block';
   nbChip.textContent=`📓 NOTEBOOKS 0 / ${NB_TOTAL}`;
   introT=0; setTimeout(requestLock,60);
-  setTimeout(()=>toast(genWarning || `${nbRooms.length}/${NB_TOTAL} notebook rooms · water machines glow cyan on the map (M)`),1200);
+  setTimeout(()=>toast(genWarning ||
+    `${nbRooms.length}/${NB_TOTAL} notebook rooms · 💧 ${machines.length} water machines (blue "W" on map M)`),1200);
 });
 const locLabel=document.getElementById('locLabel'),locSub=document.getElementById('locSub');
 const visitedRooms=new Set(); let lastLoc='';
