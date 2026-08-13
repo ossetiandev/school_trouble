@@ -39,6 +39,8 @@
   #baldiChip{bottom:14px;right:14px;display:none}
   #baldiChip.hunt{background:var(--red);color:#fff;animation:pulseB .5s ease-in-out infinite alternate}
   @keyframes pulseB{from{transform:scale(1)}to{transform:scale(1.07)}}
+  #usePrompt{display:none;left:50%;top:58%;transform:translateX(-50%);
+    background:var(--yellow);font-size:15px;white-space:nowrap}
   #stamWrap{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9;display:none;text-align:center}
   #stamLabel{font-family:"Luckiest Guy";font-size:13px;color:var(--chalk);
     text-shadow:2px 2px 0 rgba(0,0,0,.55);letter-spacing:2px;margin-bottom:3px}
@@ -107,9 +109,10 @@
   </div>
   <div id="nbChip" class="chip" style="display:none">📓 NOTEBOOKS 0 / 8</div>
   <div id="hintChip" class="chip" style="display:none">
-    <b>ПКМ</b> тетрадь &nbsp;·&nbsp; <b>SHIFT</b> бег (стамина!) &nbsp;·&nbsp; <b>M</b> карта &nbsp;·&nbsp; <b>N</b> звук
+    <b>ПКМ</b> тетрадь &nbsp;·&nbsp; <b>SHIFT</b> бег &nbsp;·&nbsp; <b>E</b> попить воды &nbsp;·&nbsp; <b>M</b> карта
   </div>
   <div id="baldiChip" class="chip">😴 Baldi sleeps…</div>
+  <div id="usePrompt" class="chip">🚰 <b>E</b> — drink water (+50 stamina)</div>
   <div id="stamWrap">
     <div id="stamLabel">STAMINA</div>
     <div id="stamBar"><div id="stamFill"></div></div>
@@ -130,12 +133,12 @@
       <div class="paperCard">
         <div class="head">HOW TO PLAY</div>
         <div class="body">
-          <div class="ctl"><span>Baldi is already somewhere in the school (grey dot on the map). Don't wake him up.</span><span><i>😴</i></span></div>
-          <div class="ctl"><span>The first notebook wakes him. Each next one makes him faster.</span><span><i>📏</i></span></div>
-          <div class="ctl"><span>Walk / run (stamina refills only when standing still)</span><span><kbd>WASD</kbd> <kbd>SHIFT</kbd></span></div>
-          <div class="ctl"><span>Grab a notebook (close + look + right-click)</span><kbd>RMB</kbd></div>
+          <div class="ctl"><span>Baldi wakes up after your first notebook. Each next one makes him faster.</span><span><i>📏</i></span></div>
+          <div class="ctl"><span>Run (stamina refills only when standing still)</span><span><kbd>SHIFT</kbd></span></div>
+          <div class="ctl"><span>Water machines in the middle of the school: press E → +50 stamina</span><kbd>E</kbd></div>
+          <div class="ctl"><span>Grab notebooks (close + look + right-click)</span><kbd>RMB</kbd></div>
           <div class="note">Sealed <b>CLASS rooms</b> have red doors with a CLASS sign. All 8 notebooks →
-            the <b>yellow door</b> in your starting classroom unlocks. You can always outrun him — barely.</div>
+            the <b>yellow door</b> in your starting classroom unlocks. Water machines glow cyan on the map (M).</div>
         </div>
       </div>
       <button class="bigBtn" id="startBtn">ENTER THE SCHOOL ➜</button>
@@ -648,6 +651,25 @@ function classSignTex(text){ return canvasTex(256,96,(g,w,h)=>{
   g.fillStyle='#fdf4dd'; g.textAlign='center';
   g.font='44px "Luckiest Guy","Comic Neue",cursive'; g.fillText(text,w/2,66);
 });}
+function waterMachineTex(){ return canvasTex(256,512,(g,w,h)=>{
+  g.fillStyle='#1b4f9e'; g.fillRect(0,0,w,h);
+  g.fillStyle='#123a77'; g.fillRect(10,10,w-20,250);
+  g.fillStyle='#9fd8ff';
+  for(let r=0;r<3;r++)for(let c=0;c<3;c++){
+    const x=30+c*70, y=30+r*76;
+    g.fillRect(x,y,44,58);
+    g.fillStyle='#e8f7ff'; g.fillRect(x+8,y+6,28,10); g.fillStyle='#9fd8ff';
+  }
+  g.fillStyle='#fff'; g.textAlign='center';
+  g.font='44px "Luckiest Guy","Comic Neue",cursive';
+  g.fillText('WATER', w/2, 320);
+  g.font='24px "Comic Neue",sans-serif';
+  g.fillText('+50 STAMINA', w/2, 352);
+  g.fillStyle='#ffd23f'; g.fillRect(96,390,64,40);
+  g.fillStyle='#20261f'; g.font='bold 26px "Comic Neue"'; g.fillText('E', w/2, 420);
+  g.fillStyle='#0d2b57'; g.fillRect(0,460,w,52);
+  g.fillStyle='#5fd068'; g.beginPath(); g.arc(40,486,10,0,7); g.fill();
+});}
 function chalkboardCanvas(title){
   return canvasTex(512,288,(g,w,h)=>{
     g.fillStyle='#8a5a33'; g.fillRect(0,0,w,h);
@@ -691,14 +713,14 @@ genMap();
 genNotebookRooms();
 setupExit();
 
-const flickerMats=[], panelSpots=[], doors=[], notebooks=[];
-let woodTex, yellowTex;
+const flickerMats=[], panelSpots=[], doors=[], notebooks=[], machines=[];
+let woodTex, yellowTex, waterTex;
 
 async function buildWorld(){
   const [wallTex,floorTex]=await Promise.all([
     loadTex('Files/wall.png',fallbackWall,'Files/wall.png'),
     loadTex('Files/floor.png',fallbackFloor,'Files/floor.png')]);
-  woodTex=woodDoorTex(); yellowTex=yellowDoorTex();
+  woodTex=woodDoorTex(); yellowTex=yellowDoorTex(); waterTex=waterMachineTex();
 
   floorTex.repeat.set(F,F);
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(F*T,F*T),
@@ -743,10 +765,10 @@ async function buildWorld(){
   });
 
   await document.fonts.ready;
-  buildDoors(); buildNotebooks(); buildExitDecor();
+  buildDoors(); buildNotebooks(); buildExitDecor(); buildWaterMachines();
   buildBoards(); buildPosters(); buildDust();
   await loadBaldi();
-  placeBaldiDormant();   // Baldi stands in the far corner from the very start
+  placeBaldiDormant();
 }
 
 function buildFrames(dummy,col){
@@ -846,6 +868,73 @@ function updateDoors(dt,t){
   }
 }
 
+// --------------------- water machines -------------------------
+let nearMachine=null;
+function buildWaterMachines(){
+  const c=(F-1)/2, rad=Math.floor(F*0.22);
+  const cands=[];
+  for(let j=2;j<F-2;j++)for(let i=2;i<F-2;i++){
+    if(FG[i+j*F]!==0) continue;
+    if(Math.abs(i-c)>rad||Math.abs(j-c)>rad) continue;
+    if(staticBlocked.has(i+j*F)) continue;
+    let openN=0; const walls=[];
+    for(let s=0;s<4;s++){
+      const dx=DIRS[s][0], dy=DIRS[s][1];
+      if(FG[i+dx+(j+dy)*F]===0) openN++; else walls.push(s);
+    }
+    if(openN<3 || !walls.length) continue;
+    cands.push({i,j,side:walls[0],distC:Math.hypot(i-c,j-c)});
+  }
+  cands.sort((a,b)=>a.distC-b.distC);
+  const chosen=[];
+  for(const cd of cands){
+    if(chosen.length>=3) break;
+    if(chosen.some(p=>Math.hypot(p.i-cd.i,p.j-cd.j)<8)) continue;
+    chosen.push(cd);
+  }
+  const bodyMat=new THREE.MeshLambertMaterial({color:0x2a5db0});
+  for(const cd of chosen){
+    const wd=DIRS[cd.side];
+    const f={x:-wd[0], z:-wd[1]};
+    const g=new THREE.Group();
+    g.position.set(tileCX(cd.i)+wd[0]*(T/2-0.3), 0, tileCX(cd.j)+wd[1]*(T/2-0.3));
+    g.rotation.y=Math.atan2(f.x,f.z);
+    const body=new THREE.Mesh(new THREE.BoxGeometry(1.0,1.95,0.55),bodyMat);
+    body.position.y=0.975; g.add(body);
+    const frontMat=new THREE.MeshBasicMaterial({map:waterTex});
+    const front=new THREE.Mesh(new THREE.PlaneGeometry(0.94,1.82),frontMat);
+    front.position.set(0,0.98,0.285); g.add(front);
+    scene.add(g);
+    staticBlocked.add(cd.i+cd.j*F);
+    machines.push({x:g.position.x, z:g.position.z, mat:frontMat, cooldown:0, flash:0, seed:rng()*7});
+  }
+  console.log(`[HALL PASS] water machines placed: ${machines.length}`);
+}
+function useMachine(){
+  if(!nearMachine) return;
+  if(nearMachine.cooldown>0){ toast('The machine is refilling…'); return; }
+  nearMachine.cooldown=1.5; nearMachine.flash=0.45;
+  const before=stamina;
+  stamina=Math.min(100, stamina+50);
+  if(exhausted && stamina>=25) exhausted=false;
+  sfxDrink();
+  toast(`Glug glug! +${Math.round(stamina-before)} stamina`);
+}
+function updateMachines(dt,t){
+  nearMachine=null;
+  for(const m of machines){
+    m.cooldown=Math.max(0,m.cooldown-dt);
+    m.flash=Math.max(0,m.flash-dt);
+    const d=Math.hypot(player.x-m.x,player.z-m.z);
+    if(d<2.1) nearMachine=m;
+    // idle glow pulse / flash on use
+    const pulse=0.82+0.18*Math.sin(t*3+m.seed);
+    const v=m.flash>0 ? 1.6 : (m.cooldown>0 ? 0.45 : pulse);
+    m.mat.color.setRGB(Math.min(v,1.2), Math.min(v,1.2), Math.min(v,1.2));
+  }
+  usePrompt.style.display=(nearMachine && locked)?'block':'none';
+}
+
 // --------------------------- BALDI ----------------------------
 let baldiGroup=null, baldiMixer=null, baldiActive=false, baldiExists=false;
 const baldi={x:0,z:0, stepT:0, lunge:0, from:null, to:null};
@@ -892,7 +981,6 @@ async function loadBaldi(){
   }
 }
 function placeBaldiDormant(){
-  // farthest walkable tile from the player = Baldi's corner
   const pi=worldToTile(player.x), pj=worldToTile(player.z);
   const N=F*F, dA=new Int32Array(N).fill(-1), q=[pi+pj*F]; dA[q[0]]=0;
   let head=0, far=q[0];
@@ -1153,6 +1241,7 @@ addEventListener('keydown',e=>{
   if(e.code==='KeyM'){mapOn=!mapOn;document.getElementById('mapWrap').style.display=mapOn?'block':'none';}
   if(e.code==='KeyN') toggleSound();
   if(e.code==='KeyR'&&locked){spawn();toast('Back in class!');}
+  if(e.code==='KeyE'&&locked&&state==='play') useMachine();
 });
 addEventListener('keyup',e=>keys[e.code]=false);
 const sens=0.0022;
@@ -1234,6 +1323,8 @@ const sfxWin=()=>{ [523,659,784,1046].forEach((f,i)=>beep('triangle',f,f,0.17,0.
 const sfxSlap=v=>{ noiseHit(0.055,0.5*v,850,'bandpass'); beep('square',195,110,0.06,0.16*v,0.012); };
 const sfxBaldiSpawn=()=>{ beep('sine',95,38,0.6,0.4); noiseHit(0.45,0.25,260); };
 const sfxCaught=()=>{ noiseHit(0.5,0.6,320); beep('sawtooth',420,55,0.75,0.5); };
+const sfxDrink=()=>{ noiseHit(0.25,0.07,1400,'highpass'); beep('sine',380,540,0.1,0.2);
+  beep('sine',470,660,0.1,0.18,0.11); beep('sine',560,780,0.12,0.16,0.22); };
 function toggleSound(){
   muted=!muted;
   if(master) master.gain.linearRampToValueAtTime(muted?0:0.6,(actx?.currentTime||0)+0.15);
@@ -1268,6 +1359,10 @@ function drawMinimap(t){
     mg.fillStyle=`rgba(255,210,63,${blink})`;
     mg.beginPath(); mg.arc((nb.x+HALF)/T*s,(nb.z+HALF)/T*s,3,0,7); mg.fill();
   }
+  for(const m of machines){
+    mg.fillStyle=m.cooldown>0?'rgba(80,160,200,.5)':'#57c7ff';
+    mg.fillRect((m.x+HALF)/T*s-2.2,(m.z+HALF)/T*s-2.2,4.4,4.4);
+  }
   if(baldiExists){
     const bx=(baldi.x+HALF)/T*s, bz=(baldi.z+HALF)/T*s;
     const blink=baldiActive ? 0.55+0.45*Math.sin(t*8) : 0.9;
@@ -1290,18 +1385,19 @@ function drawMinimap(t){
 
 // ---------------------------- UI ------------------------------
 const toastEl=document.getElementById('toast'),nbChip=document.getElementById('nbChip'),
-      baldiChip=document.getElementById('baldiChip'),dangerEl=document.getElementById('danger');
+      baldiChip=document.getElementById('baldiChip'),dangerEl=document.getElementById('danger'),
+      usePrompt=document.getElementById('usePrompt');
 let toastTimer;
 function toast(msg){
   toastEl.textContent=msg; toastEl.classList.add('show');
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2800);
 }
 function updateBaldiHUD(){
-  if(!baldiExists){ return; }
+  if(!baldiExists) return;
   const d=Math.hypot(player.x-baldi.x,player.z-baldi.z);
   if(!baldiActive){
     baldiChip.classList.remove('hunt');
-    baldiChip.textContent=`😴 Baldi sleeps ${d.toFixed(0)} m away… don't take notebooks`;
+    baldiChip.textContent=`😴 Baldi sleeps ${d.toFixed(0)} m away…`;
     dangerEl.style.opacity=0;
   }else{
     baldiChip.classList.add('hunt');
@@ -1316,7 +1412,7 @@ document.getElementById('startBtn').addEventListener('click',()=>{
   stamWrap.style.display='block';
   nbChip.textContent=`📓 NOTEBOOKS 0 / ${NB_TOTAL}`;
   introT=0; setTimeout(requestLock,60);
-  setTimeout(()=>toast(genWarning || `School built: ${nbRooms.length}/${NB_TOTAL} notebook rooms. Press M — Baldi is the grey "B" dot.`),1200);
+  setTimeout(()=>toast(genWarning || `${nbRooms.length}/${NB_TOTAL} notebook rooms · water machines glow cyan on the map (M)`),1200);
 });
 const locLabel=document.getElementById('locLabel'),locSub=document.getElementById('locSub');
 const visitedRooms=new Set(); let lastLoc='';
@@ -1341,7 +1437,7 @@ function win(){
 
 window.HALLPASS={ THREE, scene, camera,
   grid:{F,T,HALF,solidTile,isWallTile,tileCX},
-  rooms, roomCenters, nbRooms, notebooks, doors, player, baldi, emitNoise, onNoise:null };
+  rooms, roomCenters, nbRooms, notebooks, doors, machines, player, baldi, emitNoise, onNoise:null };
 
 // ------------------------- main loop --------------------------
 const clock=new THREE.Clock();
@@ -1385,6 +1481,7 @@ function animate(){
     player.x=nx; player.z=nz;
 
     updateDoors(dt,t);
+    updateMachines(dt,t);
     if(locked) updateBaldi(dt);
     updateBaldiHUD();
 
