@@ -13,19 +13,19 @@
     --yellow:#ffd23f; --red:#e14b3c; --chalk:#eef7ee;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;height:100%;overflow:hidden;background:var(--board-deep);
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;
     font-family:"Comic Neue","Comic Sans MS",cursive;color:var(--ink)}
   #game{position:fixed;inset:0}
   #game canvas{display:block}
   #vignette{position:fixed;inset:0;pointer-events:none;z-index:5;
-    background:radial-gradient(ellipse at 50% 45%, transparent 52%, rgba(8,20,14,.42) 100%)}
+    background:radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0,0,0,.65) 100%)}
   #danger{position:fixed;inset:0;pointer-events:none;z-index:6;opacity:0;
-    box-shadow:inset 0 0 150px 55px rgba(200,25,20,.6)}
+    box-shadow:inset 0 0 160px 60px rgba(200,25,20,.65)}
   #cross{position:fixed;left:50%;top:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;
     border-radius:50%;background:#fff;mix-blend-mode:difference;z-index:8;pointer-events:none;
     box-shadow:0 0 0 3px rgba(255,255,255,.35)}
   .chip{position:fixed;z-index:9;background:var(--paper);border:2.5px solid var(--ink);
-    box-shadow:4px 4px 0 rgba(10,25,18,.45);padding:7px 12px;border-radius:8px;
+    box-shadow:4px 4px 0 rgba(0,0,0,.6);padding:7px 12px;border-radius:8px;
     font-weight:700;font-size:14px;line-height:1.25}
   #locChip{top:14px;left:14px;min-width:190px}
   #locChip .big{font-family:"Luckiest Guy";font-size:21px;letter-spacing:.5px;color:var(--red)}
@@ -49,13 +49,8 @@
   #stamFill{height:100%;width:100%;background:#5fd068}
   #stamWrap.exhausted #stamFill{background:var(--red)}
   #stamWrap.exhausted #stamLabel{color:var(--red)}
-  #mapWrap{position:fixed;top:14px;right:14px;z-index:9;display:none}
-  #mapWrap .cap{font-family:"Luckiest Guy";text-align:center;color:var(--yellow);
-    text-shadow:2px 2px 0 rgba(0,0,0,.5);font-size:14px;letter-spacing:1px;margin-bottom:4px}
-  #minimap{display:block;background:#0d241a;border:3px solid var(--yellow);
-    box-shadow:5px 5px 0 rgba(0,0,0,.4);border-radius:6px}
   #toast{position:fixed;left:50%;bottom:60px;transform:translate(-50%,14px);z-index:20;
-    background:var(--paper);border:2.5px solid var(--ink);box-shadow:4px 4px 0 rgba(10,25,18,.5);
+    background:var(--paper);border:2.5px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.6);
     padding:9px 16px;border-radius:8px;font-weight:700;font-size:14px;max-width:80vw;
     opacity:0;pointer-events:none;transition:opacity .25s, transform .25s}
   #toast.show{opacity:1;transform:translate(-50%,0)}
@@ -66,7 +61,7 @@
   .doodle{position:absolute;font-family:"Luckiest Guy";color:var(--chalk);opacity:.13;
     user-select:none;pointer-events:none;animation:floaty 7s ease-in-out infinite alternate}
   @keyframes floaty{from{transform:translateY(0) rotate(-5deg)}to{transform:translateY(-16px) rotate(4deg)}}
-  .menuCol{position:relative;text-align:center;padding:24px;max-width:640px;width:100%}
+  .menuCol{position:relative;text-align:center;padding:24px;max-width:660px;width:100%}
   .title{font-family:"Luckiest Guy";font-size:clamp(56px,10vw,104px);line-height:.95;color:var(--yellow);
     transform:rotate(-2deg);letter-spacing:2px;
     text-shadow:4px 4px 0 var(--red), 9px 9px 0 rgba(0,0,0,.28)}
@@ -74,7 +69,7 @@
     letter-spacing:3px;margin:14px 0 22px;text-shadow:2px 2px 0 rgba(0,0,0,.4)}
   .tag span{color:var(--yellow)}
   .paperCard{background:var(--paper);border:3px solid var(--ink);border-radius:10px;
-    box-shadow:10px 10px 0 rgba(0,0,0,.35);text-align:left;overflow:hidden;margin:0 auto 22px;max-width:500px}
+    box-shadow:10px 10px 0 rgba(0,0,0,.35);text-align:left;overflow:hidden;margin:0 auto 22px;max-width:520px}
   .paperCard .head{background:var(--red);color:#fff;font-family:"Luckiest Guy";
     letter-spacing:2px;font-size:19px;padding:8px 16px;text-shadow:2px 2px 0 rgba(0,0,0,.3)}
   .paperCard .body{padding:14px 18px 16px;font-size:15.5px}
@@ -91,10 +86,10 @@
   .bigBtn:hover{transform:rotate(1deg) translateY(-3px);box-shadow:0 11px 0 #a87b00, 0 16px 22px rgba(0,0,0,.4)}
   .bigBtn:active{transform:rotate(1deg) translateY(3px);box-shadow:0 3px 0 #a87b00}
   .soon{margin-top:16px;color:var(--chalk);opacity:.75;font-size:13.5px;font-style:italic}
-  #pauseOverlay{background:rgba(10,30,22,.72);cursor:pointer}
+  #pauseOverlay{background:rgba(5,12,9,.85);cursor:pointer}
   #pauseOverlay .menuCol{pointer-events:none}
   #winStats,#caughtTag{color:var(--chalk);font-size:19px;margin:10px 0 26px;font-weight:700}
-  #caughtOverlay{background:radial-gradient(900px 600px at 50% 30%, #8c1d1d 0%, #4a0d0d 70%, #2a0606 100%)}
+  #caughtOverlay{background:radial-gradient(900px 600px at 50% 30%, #8c1d1d 0%, #4a0d0d 70%, #1d0404 100%)}
 </style>
 </head>
 <body>
@@ -109,7 +104,7 @@
   </div>
   <div id="nbChip" class="chip" style="display:none">📓 NOTEBOOKS 0 / 8</div>
   <div id="hintChip" class="chip" style="display:none">
-    <b>ПКМ</b> тетрадь · <b>SHIFT</b> бег · <b>E</b> вода · <b>M</b> карта · <b>Q</b> графика
+    <b>ПКМ</b> тетрадь · <b>SHIFT</b> бег (шумно!) · <b>E</b> вода · <b>Q</b> графика · наушники обязательны 🎧
   </div>
   <div id="baldiChip" class="chip">😴 Baldi sleeps…</div>
   <div id="usePrompt" class="chip">🚰 <b>E</b> — drink water (+50 stamina)</div>
@@ -117,7 +112,6 @@
     <div id="stamLabel">STAMINA</div>
     <div id="stamBar"><div id="stamFill"></div></div>
   </div>
-  <div id="mapWrap"><div class="cap">SCHOOL MAP</div><canvas id="minimap"></canvas></div>
   <div id="toast"></div>
 
   <div id="startOverlay" class="overlay">
@@ -125,24 +119,21 @@
     <span class="doodle" style="top:16%;right:9%;font-size:52px;animation-duration:8s">★</span>
     <span class="doodle" style="bottom:14%;left:11%;font-size:48px;animation-duration:9s">1+2=3</span>
     <span class="doodle" style="bottom:9%;right:13%;font-size:60px;animation-duration:7s">✓</span>
-    <span class="doodle" style="top:46%;left:3%;font-size:44px;animation-duration:10s">π</span>
-    <span class="doodle" style="top:40%;right:3%;font-size:44px;animation-duration:6.5s">A+</span>
     <div class="menuCol">
       <div class="title">HALL&nbsp;PASS</div>
-      <div class="tag">COLLECT <span>8 NOTEBOOKS</span> — AND DON'T GET CAUGHT</div>
+      <div class="tag">THE LIGHTS ARE DEAD. <span>LISTEN.</span></div>
       <div class="paperCard">
-        <div class="head">HOW TO PLAY</div>
+        <div class="head">HOW TO SURVIVE</div>
         <div class="body">
-          <div class="ctl"><span>Baldi hears running and doors. Walking is almost silent.</span><span><i>👂</i></span></div>
-          <div class="ctl"><span>Stand still → he barely sees you. Break line of sight for 6s → he gives up.</span><span><i>🙈</i></span></div>
-          <div class="ctl"><span>Run (stamina refills only when standing still)</span><span><kbd>SHIFT</kbd></span></div>
-          <div class="ctl"><span>Water machines ("W" on map): E → +50 stamina</span><kbd>E</kbd></div>
-          <div class="ctl"><span>Graphics quality (auto-drops if FPS is low)</span><kbd>Q</kbd></div>
-          <div class="note">All 8 notebooks → the <b>yellow EXIT door</b> in your starting classroom unlocks.
-            He gets faster with every notebook — but never faster than your sprint.</div>
+          <div class="ctl"><span>The school is pitch black. Navigate by ear: slaps, door creaks, bubbling water.</span><span><i>🎧</i></span></div>
+          <div class="ctl"><span>ANY noise — a door, a notebook, your running — makes him SPRINT to that spot.</span><span><i>📏💨</i></span></div>
+          <div class="ctl"><span>Stand still → he can barely see you. Walk → almost silent. Run → death wish.</span><span><i>🙈</i></span></div>
+          <div class="ctl"><span>Stamina refills only when standing still. Water machines bubble when you're close.</span><kbd>E</kbd></div>
+          <div class="note">Collect 8 notebooks from sealed CLASS rooms → the yellow EXIT door unlocks.
+            Each notebook makes him faster. Headphones strongly recommended.</div>
         </div>
       </div>
-      <button class="bigBtn" id="startBtn">ENTER THE SCHOOL ➜</button>
+      <button class="bigBtn" id="startBtn">ENTER THE DARK ➜</button>
       <div class="soon">Baldi model loads from <b>Files/baldi.glb</b> · walls/floor from <b>Files/</b></div>
     </div>
   </div>
@@ -150,7 +141,7 @@
   <div id="pauseOverlay" class="overlay hidden">
     <div class="menuCol">
       <div class="title" style="font-size:clamp(40px,7vw,72px)">PAUSED</div>
-      <div class="tag">Catch your breath — <span>click</span> to keep wandering</div>
+      <div class="tag">Catch your breath — <span>click</span> to go back into the dark</div>
     </div>
   </div>
 
@@ -202,6 +193,7 @@ const EYE = 1.62;
 const NB_TOTAL = 8;
 const WALK_SP=4.3, RUN_SP=7.3;
 const BALDI_BASE=4.6, BALDI_PER_NB=0.35, BALDI_MAX=6.9;
+const BALDI_SPRINT=10.5;   // burst speed when he hears something
 
 const tileCX = i => (i + 0.5) * T - HALF;
 const worldToTile = v => Math.floor((v + HALF) / T);
@@ -585,13 +577,14 @@ renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 document.getElementById('game').appendChild(renderer.domElement);
 const scene=new THREE.Scene();
-scene.background=new THREE.Color(0xdcd6c2);
-scene.fog=new THREE.Fog(0xdcd6c2,9,52);
+// ---- THE DARK: black fog, everything beyond ~15 m is gone ----
+scene.background=new THREE.Color(0x000000);
+scene.fog=new THREE.Fog(0x000000, 2.5, 15);
 const camera=new THREE.PerspectiveCamera(74,innerWidth/innerHeight,0.05,140);
 camera.rotation.order='YXZ';
-scene.add(new THREE.HemisphereLight(0xfff4dc,0x8f8a77,0.85));
-scene.add(new THREE.AmbientLight(0xffffff,0.5));
-const dirL=new THREE.DirectionalLight(0xfff1cf,0.35); dirL.position.set(0.4,1,0.25); scene.add(dirL);
+scene.add(new THREE.HemisphereLight(0xfff4dc,0x3a3a33,0.55));
+scene.add(new THREE.AmbientLight(0xffffff,0.38));
+const dirL=new THREE.DirectionalLight(0xfff1cf,0.22); dirL.position.set(0.4,1,0.25); scene.add(dirL);
 
 // ------------------ performance / quality ---------------------
 let lowMode=false, autoQ=true, fpsAcc=0, fpsCnt=0, lowTimer=0;
@@ -804,7 +797,6 @@ async function buildWorld(){
   buildBoards(); buildPosters(); buildDust();
   await loadBaldi();
   placeBaldiDormant();
-  makeMapStatic();
 }
 
 function buildFrames(dummy,col){
@@ -900,9 +892,9 @@ function updateDoors(dt,t){
     const spd = d.target>d.open ? 2.5 : 1.5;
     const prev=d.open;
     d.open += Math.sign(d.target-d.open)*Math.min(Math.abs(d.target-d.open), spd*dt);
-    if(d.target===1 && !d.wasT1){ sfxCreak(1/(1+0.15*nd)); emitNoise(d.cx,d.cz,9); }
+    if(d.target===1 && !d.wasT1){ sfxCreak(1/(1+0.15*nd)); emitNoise(d.cx,d.cz,11); }
     d.wasT1 = d.target===1;
-    if(prev>0.06 && d.open<=0.06){ sfxSlam(1/(1+0.12*nd)); emitNoise(d.cx,d.cz,13); }
+    if(prev>0.06 && d.open<=0.06){ sfxSlam(1/(1+0.12*nd)); emitNoise(d.cx,d.cz,15); }
     for(const p of d.panels) p.pivot.rotation.y=p.base+d.open*1.85*p.s;
     if(d.open<0.5) for(const tl of d.tiles) blockedSet.add(tl.i+tl.j*F);
   }
@@ -972,7 +964,7 @@ function buildWaterMachines(){
     qualityLights.push(pl);
     staticBlocked.add(cd.i+cd.j*F);
     machines.push({x:g.position.x, z:g.position.z, mat:frontMat, beam:beamMat, beams:[b1,b2],
-      cooldown:0, flash:0, seed:rng()*7, i:cd.i, j:cd.j});
+      cooldown:0, flash:0, seed:rng()*7, i:cd.i, j:cd.j, bloopT:rng()*2});
   }
   console.log(`[HALL PASS] water machines placed: ${machines.length}`);
 }
@@ -993,6 +985,11 @@ function updateMachines(dt,t){
     m.flash=Math.max(0,m.flash-dt);
     const d=Math.hypot(player.x-m.x,player.z-m.z);
     if(d<2.1) nearMachine=m;
+    // audible bubbling so you can find water by ear in the dark
+    if(d<7 && state==='play'){
+      m.bloopT-=dt;
+      if(m.bloopT<=0){ m.bloopT=1.8+rng()*2.4; sfxBloop(clamp(1-d/7,0.2,1)); }
+    }
     const pulse=0.82+0.18*Math.sin(t*3+m.seed);
     const v=m.flash>0 ? 1.4 : (m.cooldown>0 ? 0.45 : pulse);
     m.mat.color.setRGB(Math.min(v,1.3), Math.min(v,1.3), Math.min(v,1.3));
@@ -1004,7 +1001,7 @@ function updateMachines(dt,t){
 let baldiGroup=null, baldiMixer=null, baldiActive=false, baldiExists=false;
 const baldi={x:0,z:0, stepT:0, lunge:0, from:null, to:null,
   mode:'dormant', target:null, lastPathTarget:null, lastRepath:-9, wantRepath:false,
-  searchT:0, lastSeenT:-99};
+  searchT:0, lastSeenT:-99, sprint:false, hbT:0};
 const baldiSpeed=()=>Math.min(BALDI_MAX, BALDI_BASE+(nbGot-1)*BALDI_PER_NB);
 
 function buildFallbackBaldi(){
@@ -1073,7 +1070,7 @@ function activateBaldi(){
   if(baldiActive) return;
   if(!baldiExists) placeBaldiDormant();
   baldiActive=true;
-  baldi.mode='search';       // wakes up, looks around first — your head start
+  baldi.mode='search';
   baldi.searchT=2.5;
   baldi.target=null;
   sfxBaldiSpawn();
@@ -1090,7 +1087,11 @@ function setBaldiTarget(x,z,mode){
 function baldiHear(x,z,r){
   if(!baldiActive) return;
   const d=Math.hypot(baldi.x-x,baldi.z-z);
-  if(d<r && d>1.5) setBaldiTarget(x,z,'investigate');
+  if(d<r && d>1.5){
+    setBaldiTarget(x,z,'investigate');
+    baldi.sprint=true;            // HE HEARD SOMETHING — RUN AT IT
+    baldi.searchT=0;
+  }
 }
 const bpar=new Int32Array(F*F), bvis=new Int32Array(F*F), bq=new Int32Array(F*F);
 let bstamp=0;
@@ -1130,6 +1131,7 @@ function pickWanderTarget(){
     if(Math.hypot(tileCX(i)-baldi.x,tileCX(j)-baldi.z)<10) continue;
     setBaldiTarget(tileCX(i),tileCX(j),'wander');
     baldi.wantRepath=true;
+    baldi.sprint=false;
     return;
   }
 }
@@ -1137,13 +1139,13 @@ function updateBaldi(dt,t){
   if(!baldiActive||!baldiGroup) return;
   const pd=Math.hypot(player.x-baldi.x,player.z-baldi.z);
   const playerSpd=Math.hypot(player.vx,player.vz);
-  // standing still makes you much harder to see
-  const seeRange=playerSpd<0.5?6:11;
+  const seeRange=playerSpd<0.5?6.5:12;
   if(pd<seeRange && hasLOS(baldi.x,baldi.z,player.x,player.z)){
     baldi.lastSeenT=t;
     setBaldiTarget(player.x,player.z,'chase');
-  }else if(baldi.mode==='chase' && t-baldi.lastSeenT>6){
-    baldi.mode='wander';      // lost you — gives up and wanders off
+  }else if(baldi.mode==='chase' && t-baldi.lastSeenT>8){
+    baldi.mode='wander';
+    baldi.sprint=false;
     pickWanderTarget();
   }
   if(baldi.wantRepath && t-baldi.lastRepath>0.3){
@@ -1151,29 +1153,38 @@ function updateBaldi(dt,t){
   }else if(baldi.mode==='chase' && t-baldi.lastRepath>1.0){
     computeBaldiPath(baldi.target); baldi.lastRepath=t;
   }
-  const interval=T/baldiSpeed();
+  // heartbeat dread when he's close
+  if(pd<12){
+    baldi.hbT-=dt;
+    if(baldi.hbT<=0){
+      baldi.hbT=0.35+0.75*(pd/12);
+      sfxHeart(clamp((12-pd)/12,0,1));
+    }
+  }
+  const sp=baldi.sprint?BALDI_SPRINT:baldiSpeed();
+  const interval=T/sp;
   if(baldi.lunge>0){
-    baldi.lunge=Math.min(1,baldi.lunge+dt/0.16);
+    baldi.lunge=Math.min(1,baldi.lunge+dt/(baldi.sprint?0.11:0.16));
     const a=baldi.lunge;
     baldi.x=baldi.from.x+(baldi.to.x-baldi.from.x)*a;
     baldi.z=baldi.from.z+(baldi.to.z-baldi.from.z)*a;
-    baldiGroup.position.set(baldi.x, Math.sin(a*Math.PI)*0.1, baldi.z);
+    baldiGroup.position.set(baldi.x, Math.sin(a*Math.PI)*(baldi.sprint?0.16:0.1), baldi.z);
     if(a>=1) baldi.lunge=0;
   }else if(baldi.mode==='search'){
     baldi.searchT-=dt;
     baldiGroup.rotation.y+=dt*2.6;
-    if(baldi.searchT<=0) pickWanderTarget();
+    if(baldi.searchT<=0){ baldi.sprint=false; pickWanderTarget(); }
   }else{
     baldi.stepT+=dt;
     if(baldi.stepT>=interval){
       baldi.stepT=0;
       let dest=null;
       if(baldi.mode==='chase' && pd<4.5 && hasLOS(baldi.x,baldi.z,player.x,player.z)){
-        dest={x:player.x,z:player.z};                       // direct final approach
+        dest={x:player.x,z:player.z};
       }else if(bPath.length){
         const n=bPath.shift(); dest={x:tileCX(n.i),z:tileCX(n.j)};
       }else if(baldi.target && hasLOS(baldi.x,baldi.z,baldi.target.x,baldi.target.z)){
-        dest={x:baldi.target.x,z:baldi.target.z};           // straight line, no tile zigzag
+        dest={x:baldi.target.x,z:baldi.target.z};
       }
       if(dest){
         const d=Math.hypot(dest.x-baldi.x,dest.z-baldi.z);
@@ -1182,20 +1193,20 @@ function updateBaldi(dt,t){
           baldi.from={x:baldi.x,z:baldi.z};
           baldi.to={x:baldi.x+(dest.x-baldi.x)/d*step, z:baldi.z+(dest.z-baldi.z)/d*step};
           baldi.lunge=0.0001;
-          sfxSlap(clamp(1.3/(1+pd*0.045),0.05,1));
+          sfxSlap(clamp(1.3/(1+pd*0.04),0.05,1)*(baldi.sprint?1.25:1));
         }else{
           if(baldi.mode==='wander') pickWanderTarget();
-          else { baldi.mode='search'; baldi.searchT=2.0; baldi.target=null; }
+          else { baldi.mode='search'; baldi.searchT=baldi.sprint?2.5:2.0; baldi.target=null; baldi.sprint=false; }
         }
       }else{
         const atTarget=baldi.target &&
           Math.hypot(baldi.x-baldi.target.x,baldi.z-baldi.target.z)<1.8;
         if(atTarget){
           if(baldi.mode==='wander') pickWanderTarget();
-          else { baldi.mode='search'; baldi.searchT=2.0; baldi.target=null; }
+          else { baldi.mode='search'; baldi.searchT=baldi.sprint?2.5:2.0; baldi.target=null; baldi.sprint=false; }
         }else{
           computeBaldiPath(baldi.target); baldi.lastRepath=t;
-          if(!bPath.length){ baldi.mode='search'; baldi.searchT=0.8; }
+          if(!bPath.length){ baldi.mode='search'; baldi.searchT=0.8; baldi.sprint=false; }
         }
       }
     }
@@ -1205,7 +1216,7 @@ function updateBaldi(dt,t){
     else if(baldi.target) baldiGroup.lookAt(baldi.target.x,baldiGroup.position.y,baldi.target.z);
   }
   if(baldiMixer) baldiMixer.update(dt);
-  if(pd<0.8) caught();
+  if(pd<0.85) caught();
 }
 function caught(){
   if(state!=='play') return;
@@ -1247,11 +1258,11 @@ function tryCollect(){
   }
   if(best){
     best.collected=true; best.anim=0; nbGot++;
-    sfxCollect(); emitNoise(best.x,best.z,6);
+    sfxCollect(); emitNoise(best.x,best.z,8);
     nbChip.textContent=`📓 NOTEBOOKS ${nbGot} / ${NB_TOTAL}`;
     if(nbGot===1) activateBaldi();
     if(nbGot>=notebooks.length) unlockExit();
-    else toast(`Notebook ${nbGot} / ${notebooks.length} — ${nbGot===1?'he heard that…':'keep looking!'}`);
+    else toast(`Notebook ${nbGot} / ${notebooks.length} — ${nbGot===1?'he heard that…':'keep listening…'}`);
   }
 }
 
@@ -1385,11 +1396,10 @@ function updateStamBar(){
 }
 
 const keys={};
-let locked=false,state='menu',mapOn=false,nbGot=0,exitUnlocked=false,runStart=0;
+let locked=false,state='menu',nbGot=0,exitUnlocked=false,runStart=0;
 addEventListener('keydown',e=>{
   keys[e.code]=true;
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
-  if(e.code==='KeyM'){mapOn=!mapOn;document.getElementById('mapWrap').style.display=mapOn?'block':'none';}
   if(e.code==='KeyN') toggleSound();
   if(e.code==='KeyR'&&locked){spawn();toast('Back in class!');}
   if(e.code==='KeyE'&&locked&&state==='play') useMachine();
@@ -1429,8 +1439,8 @@ function audioOn(){
     whiteBuf=actx.createBuffer(1,actx.sampleRate,actx.sampleRate);
     const wd=whiteBuf.getChannelData(0); for(let i=0;i<wd.length;i++) wd[i]=Math.random()*2-1;
     const amb=actx.createBufferSource(); amb.buffer=whiteBuf; amb.loop=true;
-    const lp=actx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=380;
-    const ng=actx.createGain(); ng.gain.value=0.006;
+    const lp=actx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=300;
+    const ng=actx.createGain(); ng.gain.value=0.009;
     o1.connect(g1).connect(master); o2.connect(g2).connect(master);
     amb.connect(lp).connect(ng).connect(master);
     o1.start(); o2.start(); amb.start();
@@ -1477,6 +1487,8 @@ const sfxBaldiSpawn=()=>{ beep('sine',95,38,0.6,0.4); noiseHit(0.45,0.25,260); }
 const sfxCaught=()=>{ noiseHit(0.5,0.6,320); beep('sawtooth',420,55,0.75,0.5); };
 const sfxDrink=()=>{ noiseHit(0.25,0.07,1400,'highpass'); beep('sine',380,540,0.1,0.2);
   beep('sine',470,660,0.1,0.18,0.11); beep('sine',560,780,0.12,0.16,0.22); };
+const sfxHeart=v=>{ beep('sine',56,40,0.09,0.35*v); beep('sine',50,36,0.08,0.28*v,0.14); };
+const sfxBloop=v=>{ beep('sine',420+rng()*80,640,0.12,0.07*v); };
 function toggleSound(){
   muted=!muted;
   if(master) master.gain.linearRampToValueAtTime(muted?0:0.6,(actx?.currentTime||0)+0.15);
@@ -1492,63 +1504,6 @@ function unlockExit(){
   nbChip.textContent='🚪 THE YELLOW DOOR IS OPEN — RUN!';
   nbChip.classList.add('pulse');
   toast('CLICK… the yellow door in your starting classroom just unlocked!');
-}
-
-// ------------------------- minimap ----------------------------
-const mm=document.getElementById('minimap'),DPR=Math.min(devicePixelRatio,2),MS=188;
-mm.width=MS*DPR; mm.height=MS*DPR; mm.style.width=mm.style.height=MS+'px';
-const mg=mm.getContext('2d'); mg.scale(DPR,DPR);
-let mapStatic=null;
-function makeMapStatic(){
-  mapStatic=document.createElement('canvas');
-  mapStatic.width=MS*DPR; mapStatic.height=MS*DPR;
-  const g=mapStatic.getContext('2d'); g.scale(DPR,DPR);
-  const s=MS/F;
-  g.fillStyle='#0d241a'; g.fillRect(0,0,MS,MS);
-  for(let j=0;j<F;j++)for(let i=0;i<F;i++){
-    if(FG[i+j*F]===1) continue;
-    g.fillStyle=roomG[i+j*F]?'#f2e5bd':'#e0d6b0';
-    g.fillRect(i*s,j*s,s+0.5,s+0.5);
-  }
-  g.fillStyle='#8a5a33';
-  for(const d of doors)for(const tl of d.tiles) g.fillRect(tl.i*s,tl.j*s,s+0.5,s+0.5);
-}
-function drawMinimap(t){
-  if(!mapStatic) makeMapStatic();
-  mg.drawImage(mapStatic,0,0,MS,MS);
-  const s=MS/F;
-  for(const nb of notebooks){
-    if(nb.collected) continue;
-    const blink=0.55+0.45*Math.sin(t*5+nb.seed);
-    mg.fillStyle=`rgba(255,210,63,${blink})`;
-    mg.beginPath(); mg.arc((nb.x+HALF)/T*s,(nb.z+HALF)/T*s,3,0,7); mg.fill();
-  }
-  for(const m of machines){
-    const mx=(m.x+HALF)/T*s, mz=(m.z+HALF)/T*s;
-    mg.fillStyle=m.cooldown<=0?'#57c7ff':'rgba(90,150,190,.45)';
-    mg.beginPath(); mg.arc(mx,mz,4.5,0,7); mg.fill();
-    mg.strokeStyle='#e8f7ff'; mg.lineWidth=1.2; mg.stroke();
-    mg.fillStyle='#08304d'; mg.font='bold 7px "Comic Neue"'; mg.textAlign='center';
-    mg.fillText('W',mx,mz+2.5); mg.textAlign='left';
-  }
-  if(baldiExists){
-    const bx=(baldi.x+HALF)/T*s, bz=(baldi.z+HALF)/T*s;
-    const blink=baldiActive ? 0.55+0.45*Math.sin(t*8) : 0.9;
-    mg.fillStyle=baldiActive?`rgba(225,60,45,${blink})`:'rgba(150,150,150,.9)';
-    mg.beginPath(); mg.arc(bx,bz,4,0,7); mg.fill();
-    mg.fillStyle=baldiActive?'#ff8a75':'#bbb';
-    mg.font='bold 9px "Comic Neue"'; mg.fillText('B', bx-3, bz-6);
-  }
-  if(exitData){
-    mg.fillStyle=exitUnlocked?'#ffd23f':'#a8842a';
-    mg.fillRect((exitData.cx+HALF)/T*s-2.5,(exitData.cz+HALF)/T*s-2.5,5,5);
-  }
-  const px=(player.x+HALF)/T*s, pz=(player.z+HALF)/T*s;
-  mg.save(); mg.translate(px,pz); mg.rotate(-player.yaw);
-  mg.fillStyle='#ffd23f'; mg.strokeStyle='#20261f'; mg.lineWidth=1.5;
-  mg.beginPath(); mg.moveTo(0,-6); mg.lineTo(4.5,5); mg.lineTo(-4.5,5); mg.closePath();
-  mg.fill(); mg.stroke(); mg.restore();
-  mg.fillStyle='#ffd23f'; mg.font='bold 11px "Comic Neue"'; mg.fillText('N',5,13);
 }
 
 // ---------------------------- UI ------------------------------
@@ -1569,10 +1524,12 @@ function updateBaldiHUD(){
     txt=`😴 Baldi sleeps ${d.toFixed(0)} m away…`;
   }else{
     hunt=true;
-    const mood=baldi.mode==='chase'?'SEES YOU!':baldi.mode==='investigate'?'heard something':
+    const mood=baldi.sprint?'⚡ RUNNING AT THE NOISE!':
+               baldi.mode==='chase'?'SEES YOU!':
+               baldi.mode==='investigate'?'heard something':
                baldi.mode==='search'?'looking around':'patrolling';
     txt=`📏 BALDI ${d.toFixed(0)} m · ${mood}`;
-    if(d<14) op=+(clamp((14-d)/14,0,1)*0.85).toFixed(2);
+    if(d<16) op=+(clamp((16-d)/16,0,1)*0.85).toFixed(2);
   }
   if(txt!==lastBaldiTxt){ baldiChip.textContent=txt; lastBaldiTxt=txt; }
   if(hunt!==baldiChip.classList.contains('hunt')) baldiChip.classList.toggle('hunt',hunt);
@@ -1588,7 +1545,7 @@ document.getElementById('startBtn').addEventListener('click',()=>{
   nbChip.textContent=`📓 NOTEBOOKS 0 / ${NB_TOTAL}`;
   introT=0; setTimeout(requestLock,60);
   setTimeout(()=>toast(genWarning ||
-    `${nbRooms.length}/${NB_TOTAL} notebook rooms · walk quietly · Q = graphics`),1200);
+    `${nbRooms.length}/${NB_TOTAL} notebooks hidden in the dark. Put headphones on. Listen.`),1200);
 });
 const locLabel=document.getElementById('locLabel'),locSub=document.getElementById('locSub');
 const visitedRooms=new Set(); let lastLoc='', lastSub='';
@@ -1670,7 +1627,7 @@ function animate(){
       if(s!==player.step){
         player.step=s;
         footstep(Math.min(1,spd/7));
-        if(spd>RUN_SP-0.5) emitNoise(player.x,player.z,9);
+        if(spd>RUN_SP-0.5) emitNoise(player.x,player.z,10);
         else if(player.step%4===0) emitNoise(player.x,player.z,3);
       }
     }
@@ -1701,7 +1658,6 @@ function animate(){
     if(exitUnlocked && exitData && exitDoorRef && exitDoorRef.open>0.6 &&
        Math.hypot(player.x-exitData.gx,player.z-exitData.gz)<1.05) win();
     updateHUD();
-    if(mapOn) drawMinimap(t);
   }
 
   for(const f of flickerMats){
