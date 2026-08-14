@@ -19,7 +19,7 @@
   #game canvas{display:block}
   #vignette{position:fixed;inset:0;pointer-events:none;z-index:5;
     background:radial-gradient(ellipse at 50% 45%, transparent 52%, rgba(8,20,14,.42) 100%)}
-  #danger{position:fixed;inset:0;pointer-events:none;z-index:6;opacity:0;transition:opacity .25s;
+  #danger{position:fixed;inset:0;pointer-events:none;z-index:6;opacity:0;
     box-shadow:inset 0 0 150px 55px rgba(200,25,20,.6)}
   #cross{position:fixed;left:50%;top:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;
     border-radius:50%;background:#fff;mix-blend-mode:difference;z-index:8;pointer-events:none;
@@ -74,7 +74,7 @@
     letter-spacing:3px;margin:14px 0 22px;text-shadow:2px 2px 0 rgba(0,0,0,.4)}
   .tag span{color:var(--yellow)}
   .paperCard{background:var(--paper);border:3px solid var(--ink);border-radius:10px;
-    box-shadow:10px 10px 0 rgba(0,0,0,.35);text-align:left;overflow:hidden;margin:0 auto 22px;max-width:480px}
+    box-shadow:10px 10px 0 rgba(0,0,0,.35);text-align:left;overflow:hidden;margin:0 auto 22px;max-width:500px}
   .paperCard .head{background:var(--red);color:#fff;font-family:"Luckiest Guy";
     letter-spacing:2px;font-size:19px;padding:8px 16px;text-shadow:2px 2px 0 rgba(0,0,0,.3)}
   .paperCard .body{padding:14px 18px 16px;font-size:15.5px}
@@ -109,7 +109,7 @@
   </div>
   <div id="nbChip" class="chip" style="display:none">📓 NOTEBOOKS 0 / 8</div>
   <div id="hintChip" class="chip" style="display:none">
-    <b>ПКМ</b> тетрадь &nbsp;·&nbsp; <b>SHIFT</b> бег (шумно!) &nbsp;·&nbsp; <b>E</b> вода &nbsp;·&nbsp; <b>M</b> карта
+    <b>ПКМ</b> тетрадь · <b>SHIFT</b> бег · <b>E</b> вода · <b>M</b> карта · <b>Q</b> графика
   </div>
   <div id="baldiChip" class="chip">😴 Baldi sleeps…</div>
   <div id="usePrompt" class="chip">🚰 <b>E</b> — drink water (+50 stamina)</div>
@@ -133,12 +133,13 @@
       <div class="paperCard">
         <div class="head">HOW TO PLAY</div>
         <div class="body">
-          <div class="ctl"><span>Baldi hears running, doors and notebooks. Walking is almost silent.</span><span><i>👂</i></span></div>
-          <div class="ctl"><span>He sees you only up close. Hide quietly in classrooms to lose him.</span><span><i>🙈</i></span></div>
+          <div class="ctl"><span>Baldi hears running and doors. Walking is almost silent.</span><span><i>👂</i></span></div>
+          <div class="ctl"><span>Stand still → he barely sees you. Break line of sight for 6s → he gives up.</span><span><i>🙈</i></span></div>
           <div class="ctl"><span>Run (stamina refills only when standing still)</span><span><kbd>SHIFT</kbd></span></div>
           <div class="ctl"><span>Water machines ("W" on map): E → +50 stamina</span><kbd>E</kbd></div>
+          <div class="ctl"><span>Graphics quality (auto-drops if FPS is low)</span><kbd>Q</kbd></div>
           <div class="note">All 8 notebooks → the <b>yellow EXIT door</b> in your starting classroom unlocks.
-            Each notebook makes him faster — but never faster than your run.</div>
+            He gets faster with every notebook — but never faster than your sprint.</div>
         </div>
       </div>
       <button class="bigBtn" id="startBtn">ENTER THE SCHOOL ➜</button>
@@ -200,8 +201,7 @@ const HALF = F * T / 2;
 const EYE = 1.62;
 const NB_TOTAL = 8;
 const WALK_SP=4.3, RUN_SP=7.3;
-const BALDI_BASE=4.85, BALDI_PER_NB=0.5, BALDI_MAX=7.1;
-const BALDI_SEE=13;
+const BALDI_BASE=4.6, BALDI_PER_NB=0.35, BALDI_MAX=6.9;
 
 const tileCX = i => (i + 0.5) * T - HALF;
 const worldToTile = v => Math.floor((v + HALF) / T);
@@ -390,7 +390,6 @@ function digPath(path){
   }
 }
 
-// ---- 8 sealed CLASS rooms ----
 const nbRooms=[];
 const globalForbidden=new Set();
 
@@ -466,12 +465,11 @@ function genNotebookRooms(){
       }
     }
   }
-  console.log(`[HALL PASS] notebook rooms placed: ${nbRooms.length}/${NB_TOTAL} (map ${F}x${F})`);
+  console.log(`[HALL PASS] notebook rooms placed: ${nbRooms.length}/${NB_TOTAL}`);
   if(nbRooms.length<NB_TOTAL)
-    genWarning=`Only ${nbRooms.length}/${NB_TOTAL} notebook rooms fit this building — refresh for a new school.`;
+    genWarning=`Only ${nbRooms.length}/${NB_TOTAL} notebook rooms fit — refresh for a new school.`;
 }
 
-// ------------- yellow double EXIT door -------------
 function bestEdgeRun(x0,z0,x1,z1){
   const edges=[
     {axis:'z', line:z0-1, from:x0, to:x1, rot:0,          off:+0.03},
@@ -512,7 +510,6 @@ function setupExit(){
   const r=rooms[0];
   const x0=W+r.x*(P+W), z0=W+r.y*(P+W);
   const x1=x0+r.w*(P+W)-W, z1=z0+r.h*(P+W)-W;
-  // pick the edge whose wall can hold a real recessed exit niche
   const edges=[
     {axis:'z', line:z0-1, from:x0, to:x1, out:{x:0,z:-1}},
     {axis:'z', line:z1,   from:x0, to:x1, out:{x:0,z:1}},
@@ -538,7 +535,6 @@ function setupExit(){
   else    { m0=x0+1; axis='z'; out={x:0,z:-1}; depth=exitDepthAt('z',out,x0,z0,x1,z1,m0); }
   const face = axis==='z' ? (out.z<0?z0:z1) : (out.x<0?x0:x1);
   const faceW=(face-F/2)*T;
-  // dig the niche
   for(let d=1; d<=depth; d++){
     if(axis==='z'){
       const row = out.z<0 ? z0-d : z1+d-1;
@@ -596,6 +592,26 @@ camera.rotation.order='YXZ';
 scene.add(new THREE.HemisphereLight(0xfff4dc,0x8f8a77,0.85));
 scene.add(new THREE.AmbientLight(0xffffff,0.5));
 const dirL=new THREE.DirectionalLight(0xfff1cf,0.35); dirL.position.set(0.4,1,0.25); scene.add(dirL);
+
+// ------------------ performance / quality ---------------------
+let lowMode=false, autoQ=true, fpsAcc=0, fpsCnt=0, lowTimer=0;
+const qualityLights=[];
+function trackPerf(dt){
+  fpsAcc+=dt; fpsCnt++;
+  if(fpsAcc<0.5) return;
+  const fps=fpsCnt/fpsAcc; fpsAcc=0; fpsCnt=0;
+  if(fps<42) lowTimer+=0.5; else lowTimer=Math.max(0,lowTimer-0.5);
+  if(autoQ && !lowMode && lowTimer>=2) setQuality(true,true);
+}
+function setQuality(low,auto){
+  lowMode=low;
+  renderer.setPixelRatio(low?1:Math.min(devicePixelRatio,1.5));
+  if(dust) dust.visible=!low;
+  for(const m of machines) if(m.beams) for(const b of m.beams) b.visible=!low;
+  for(const L of qualityLights) L.visible=!low;
+  toast(auto?'Performance mode ON (Q to toggle graphics)':(low?'Low graphics ON':'High graphics ON'));
+  console.log('[HALL PASS] graphics mode:', low?'LOW':'HIGH');
+}
 
 // ------------------------ textures ---------------------------
 function canvasTex(w,h,draw,repX=1,repY=1){
@@ -815,7 +831,6 @@ function buildFrames(dummy,col){
   scene.add(posts); scene.add(beams);
 }
 
-// --------------------------- doors ----------------------------
 function makeDoor(cfg){
   const d={...cfg, open:0, target:0, closeT:0, wasT1:false,
     lastRattle:-9, everOpened:false, panels:[]};
@@ -854,7 +869,6 @@ function buildDoors(){
     if(cfg.isExit) exitDoorRef=d;
   }
 }
-
 function updateDoors(dt,t){
   const actors=[{x:player.x,z:player.z}];
   if(baldiActive) actors.push({x:baldi.x,z:baldi.z});
@@ -953,10 +967,11 @@ function buildWaterMachines(){
     const b1=new THREE.Mesh(beamGeo,beamMat); b1.position.y=1.95+(H-1.9)/2; g.add(b1);
     const b2=new THREE.Mesh(beamGeo,beamMat); b2.position.y=b1.position.y; b2.rotation.y=Math.PI/2; g.add(b2);
     scene.add(g);
-    const pl=new THREE.PointLight(0x66ccff,0.9,7,2);
+    const pl=new THREE.PointLight(0x66ccff,0.9,6,2);
     pl.position.set(g.position.x, 2.1, g.position.z); scene.add(pl);
+    qualityLights.push(pl);
     staticBlocked.add(cd.i+cd.j*F);
-    machines.push({x:g.position.x, z:g.position.z, mat:frontMat, beam:beamMat,
+    machines.push({x:g.position.x, z:g.position.z, mat:frontMat, beam:beamMat, beams:[b1,b2],
       cooldown:0, flash:0, seed:rng()*7, i:cd.i, j:cd.j});
   }
   console.log(`[HALL PASS] water machines placed: ${machines.length}`);
@@ -983,14 +998,13 @@ function updateMachines(dt,t){
     m.mat.color.setRGB(Math.min(v,1.3), Math.min(v,1.3), Math.min(v,1.3));
     m.beam.opacity=(m.cooldown>0?0.08:0.14+0.1*Math.sin(t*2+m.seed))+(m.flash>0?0.3:0);
   }
-  usePrompt.style.display=(nearMachine && locked)?'block':'none';
 }
 
 // --------------------------- BALDI ----------------------------
 let baldiGroup=null, baldiMixer=null, baldiActive=false, baldiExists=false;
 const baldi={x:0,z:0, stepT:0, lunge:0, from:null, to:null,
-  mode:'dormant', target:null, lastPathTarget:null, lastRepath:-9, wantRepath:false, searchT:0};
-
+  mode:'dormant', target:null, lastPathTarget:null, lastRepath:-9, wantRepath:false,
+  searchT:0, lastSeenT:-99};
 const baldiSpeed=()=>Math.min(BALDI_MAX, BALDI_BASE+(nbGot-1)*BALDI_PER_NB);
 
 function buildFallbackBaldi(){
@@ -1059,12 +1073,12 @@ function activateBaldi(){
   if(baldiActive) return;
   if(!baldiExists) placeBaldiDormant();
   baldiActive=true;
-  baldi.mode='wander';
-  pickWanderTarget();
+  baldi.mode='search';       // wakes up, looks around first — your head start
+  baldi.searchT=2.5;
+  baldi.target=null;
   sfxBaldiSpawn();
   toast('THWACK! Baldi woke up — move quietly.');
 }
-// --- Baldi senses ---
 function setBaldiTarget(x,z,mode){
   baldi.target={x,z};
   baldi.mode=mode;
@@ -1078,18 +1092,16 @@ function baldiHear(x,z,r){
   const d=Math.hypot(baldi.x-x,baldi.z-z);
   if(d<r && d>1.5) setBaldiTarget(x,z,'investigate');
 }
-// --- Baldi pathfinding (reused buffers) ---
 const bpar=new Int32Array(F*F), bvis=new Int32Array(F*F), bq=new Int32Array(F*F);
 let bstamp=0;
 const bPath=[];
 function computeBaldiPath(t){
-  if(!baldi.target) return;
+  if(!t) return;
   const si=clamp(worldToTile(baldi.x),0,F-1), sj=clamp(worldToTile(baldi.z),0,F-1);
   const ti=clamp(worldToTile(t.x),0,F-1), tj=clamp(worldToTile(t.z),0,F-1);
   const start=si+sj*F, goal=ti+tj*F;
   bPath.length=0;
-  if(FG[goal]===1) return;
-  if(start===goal) return;
+  if(FG[goal]===1 || start===goal) return;
   bstamp++;
   let head=0,tail=0;
   bq[tail++]=start; bvis[start]=bstamp; bpar[start]=-1;
@@ -1115,7 +1127,7 @@ function pickWanderTarget(){
   for(let a=0;a<40;a++){
     const i=1+(rng()*(F-2)|0), j=1+(rng()*(F-2)|0);
     if(FG[i+j*F]!==0) continue;
-    if(Math.hypot(tileCX(i)-baldi.x,tileCX(j)-baldi.z)<8) continue;
+    if(Math.hypot(tileCX(i)-baldi.x,tileCX(j)-baldi.z)<10) continue;
     setBaldiTarget(tileCX(i),tileCX(j),'wander');
     baldi.wantRepath=true;
     return;
@@ -1123,18 +1135,22 @@ function pickWanderTarget(){
 }
 function updateBaldi(dt,t){
   if(!baldiActive||!baldiGroup) return;
-  // senses: vision
   const pd=Math.hypot(player.x-baldi.x,player.z-baldi.z);
-  if(pd<BALDI_SEE && hasLOS(baldi.x,baldi.z,player.x,player.z)){
+  const playerSpd=Math.hypot(player.vx,player.vz);
+  // standing still makes you much harder to see
+  const seeRange=playerSpd<0.5?6:11;
+  if(pd<seeRange && hasLOS(baldi.x,baldi.z,player.x,player.z)){
+    baldi.lastSeenT=t;
     setBaldiTarget(player.x,player.z,'chase');
+  }else if(baldi.mode==='chase' && t-baldi.lastSeenT>6){
+    baldi.mode='wander';      // lost you — gives up and wanders off
+    pickWanderTarget();
   }
-  // path management
   if(baldi.wantRepath && t-baldi.lastRepath>0.3){
     computeBaldiPath(baldi.target); baldi.lastRepath=t; baldi.wantRepath=false;
   }else if(baldi.mode==='chase' && t-baldi.lastRepath>1.0){
     computeBaldiPath(baldi.target); baldi.lastRepath=t;
   }
-  // steps
   const interval=T/baldiSpeed();
   if(baldi.lunge>0){
     baldi.lunge=Math.min(1,baldi.lunge+dt/0.16);
@@ -1145,25 +1161,38 @@ function updateBaldi(dt,t){
     if(a>=1) baldi.lunge=0;
   }else if(baldi.mode==='search'){
     baldi.searchT-=dt;
-    baldiGroup.rotation.y+=dt*2.6;   // looking around
+    baldiGroup.rotation.y+=dt*2.6;
     if(baldi.searchT<=0) pickWanderTarget();
   }else{
     baldi.stepT+=dt;
     if(baldi.stepT>=interval){
       baldi.stepT=0;
-      if(bPath.length){
-        const next=bPath.shift();
-        baldi.from={x:baldi.x,z:baldi.z};
-        baldi.to={x:tileCX(next.i), z:tileCX(next.j)};
-        baldi.lunge=0.0001;
-        const d=Math.hypot(player.x-baldi.x,player.z-baldi.z);
-        sfxSlap(clamp(1.3/(1+d*0.045),0.05,1));
+      let dest=null;
+      if(baldi.mode==='chase' && pd<4.5 && hasLOS(baldi.x,baldi.z,player.x,player.z)){
+        dest={x:player.x,z:player.z};                       // direct final approach
+      }else if(bPath.length){
+        const n=bPath.shift(); dest={x:tileCX(n.i),z:tileCX(n.j)};
+      }else if(baldi.target && hasLOS(baldi.x,baldi.z,baldi.target.x,baldi.target.z)){
+        dest={x:baldi.target.x,z:baldi.target.z};           // straight line, no tile zigzag
+      }
+      if(dest){
+        const d=Math.hypot(dest.x-baldi.x,dest.z-baldi.z);
+        if(d>0.3){
+          const step=Math.min(T,d);
+          baldi.from={x:baldi.x,z:baldi.z};
+          baldi.to={x:baldi.x+(dest.x-baldi.x)/d*step, z:baldi.z+(dest.z-baldi.z)/d*step};
+          baldi.lunge=0.0001;
+          sfxSlap(clamp(1.3/(1+pd*0.045),0.05,1));
+        }else{
+          if(baldi.mode==='wander') pickWanderTarget();
+          else { baldi.mode='search'; baldi.searchT=2.0; baldi.target=null; }
+        }
       }else{
         const atTarget=baldi.target &&
           Math.hypot(baldi.x-baldi.target.x,baldi.z-baldi.target.z)<1.8;
         if(atTarget){
-          if(baldi.mode==='wander'){ pickWanderTarget(); }
-          else { baldi.mode='search'; baldi.searchT=1.6; }
+          if(baldi.mode==='wander') pickWanderTarget();
+          else { baldi.mode='search'; baldi.searchT=2.0; baldi.target=null; }
         }else{
           computeBaldiPath(baldi.target); baldi.lastRepath=t;
           if(!bPath.length){ baldi.mode='search'; baldi.searchT=0.8; }
@@ -1171,13 +1200,12 @@ function updateBaldi(dt,t){
       }
     }
   }
-  // facing
   if(baldi.mode!=='search'){
     if(baldi.mode==='chase') baldiGroup.lookAt(player.x,baldiGroup.position.y,player.z);
     else if(baldi.target) baldiGroup.lookAt(baldi.target.x,baldiGroup.position.y,baldi.target.z);
   }
   if(baldiMixer) baldiMixer.update(dt);
-  if(pd<0.9) caught();
+  if(pd<0.8) caught();
 }
 function caught(){
   if(state!=='play') return;
@@ -1219,7 +1247,7 @@ function tryCollect(){
   }
   if(best){
     best.collected=true; best.anim=0; nbGot++;
-    sfxCollect(); emitNoise(best.x,best.z,7);
+    sfxCollect(); emitNoise(best.x,best.z,6);
     nbChip.textContent=`📓 NOTEBOOKS ${nbGot} / ${NB_TOTAL}`;
     if(nbGot===1) activateBaldi();
     if(nbGot>=notebooks.length) unlockExit();
@@ -1227,7 +1255,6 @@ function tryCollect(){
   }
 }
 
-// ---------------------- exit door decor -----------------------
 function buildExitDecor(){
   if(!exitData) return;
   const rotY=Math.atan2(exitData.inward.x, exitData.inward.z);
@@ -1237,7 +1264,6 @@ function buildExitDecor(){
                     exitData.cz+exitData.out.z*(exitData.depth*T+0.03));
   glow.rotation.y=rotY; scene.add(glow);
   if(exitData.depth===0){
-    // fake "night outside" backdrop so the door still reads as an exit
     const back=new THREE.Mesh(new THREE.PlaneGeometry(2*T+0.4,3.3),
       new THREE.MeshBasicMaterial({color:0x0b1c33}));
     back.position.set(exitData.cx+exitData.out.x*0.85, 1.65, exitData.cz+exitData.out.z*0.85);
@@ -1248,10 +1274,11 @@ function buildExitDecor(){
     new THREE.MeshBasicMaterial({map:exitSignTex()}));
   sign.position.set(exitData.cx-exitData.out.x*0.07, H-0.78, exitData.cz-exitData.out.z*0.07);
   sign.rotation.y=rotY; scene.add(sign);
-  const pl=new THREE.PointLight(0xffedb0,2.2,13,2);
+  const pl=new THREE.PointLight(0xffedb0,2.2,12,2);
   pl.position.set(exitData.cx+exitData.out.x*Math.max(exitData.depth*T*0.6,0.5), 2.2,
                   exitData.cz+exitData.out.z*Math.max(exitData.depth*T*0.6,0.5));
   scene.add(pl);
+  qualityLights.push(pl);
 }
 
 function placeBoard(x0,z0,x1,z1,title){
@@ -1273,7 +1300,7 @@ function buildBoards(){
 }
 function buildPosters(){
   const placed=[]; let tries=0;
-  while(placed.length<18 && tries++<1000){
+  while(placed.length<14 && tries++<1000){
     const i=1+(rng()*(F-2)|0), j=1+(rng()*(F-2)|0);
     if(!isWallTile(i,j)) continue;
     if(placed.some(p=>Math.hypot(p[0]-i,p[1]-j)<6)) continue;
@@ -1346,10 +1373,15 @@ function tryMove(px,pz,dx,dz){
 const stamWrap=document.getElementById('stamWrap'),
       stamFill=document.getElementById('stamFill'),
       stamLabel=document.getElementById('stamLabel');
+let lastStamW=-1, lastStamExh=null;
 function updateStamBar(){
-  stamFill.style.width=stamina+'%';
-  stamWrap.classList.toggle('exhausted',exhausted);
-  stamLabel.textContent=exhausted?'TIRED!':'STAMINA';
+  const w=Math.round(stamina);
+  if(w!==lastStamW){ stamFill.style.width=w+'%'; lastStamW=w; }
+  if(exhausted!==lastStamExh){
+    stamWrap.classList.toggle('exhausted',exhausted);
+    stamLabel.textContent=exhausted?'TIRED!':'STAMINA';
+    lastStamExh=exhausted;
+  }
 }
 
 const keys={};
@@ -1361,6 +1393,7 @@ addEventListener('keydown',e=>{
   if(e.code==='KeyN') toggleSound();
   if(e.code==='KeyR'&&locked){spawn();toast('Back in class!');}
   if(e.code==='KeyE'&&locked&&state==='play') useMachine();
+  if(e.code==='KeyQ'){ autoQ=false; setQuality(!lowMode,false); }
 });
 addEventListener('keyup',e=>keys[e.code]=false);
 const sens=0.0022;
@@ -1492,8 +1525,7 @@ function drawMinimap(t){
   }
   for(const m of machines){
     const mx=(m.x+HALF)/T*s, mz=(m.z+HALF)/T*s;
-    const ready=m.cooldown<=0;
-    mg.fillStyle=ready?'#57c7ff':'rgba(90,150,190,.45)';
+    mg.fillStyle=m.cooldown<=0?'#57c7ff':'rgba(90,150,190,.45)';
     mg.beginPath(); mg.arc(mx,mz,4.5,0,7); mg.fill();
     mg.strokeStyle='#e8f7ff'; mg.lineWidth=1.2; mg.stroke();
     mg.fillStyle='#08304d'; mg.font='bold 7px "Comic Neue"'; mg.textAlign='center';
@@ -1528,19 +1560,25 @@ function toast(msg){
   toastEl.textContent=msg; toastEl.classList.add('show');
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2800);
 }
+let lastBaldiTxt='', lastDangerOp=-1, lastPrompt=false;
 function updateBaldiHUD(){
   if(!baldiExists) return;
   const d=Math.hypot(player.x-baldi.x,player.z-baldi.z);
+  let txt, hunt=false, op=0;
   if(!baldiActive){
-    baldiChip.classList.remove('hunt');
-    baldiChip.textContent=`😴 Baldi sleeps ${d.toFixed(0)} m away…`;
-    dangerEl.style.opacity=0;
+    txt=`😴 Baldi sleeps ${d.toFixed(0)} m away…`;
   }else{
-    baldiChip.classList.add('hunt');
-    const mood=baldi.mode==='chase'?'SEES YOU!':baldi.mode==='investigate'?'heard something':'patrolling';
-    baldiChip.textContent=`📏 BALDI ${d.toFixed(0)} m · ${mood}`;
-    dangerEl.style.opacity = d<14 ? (clamp((14-d)/14,0,1)*0.85).toFixed(2) : 0;
+    hunt=true;
+    const mood=baldi.mode==='chase'?'SEES YOU!':baldi.mode==='investigate'?'heard something':
+               baldi.mode==='search'?'looking around':'patrolling';
+    txt=`📏 BALDI ${d.toFixed(0)} m · ${mood}`;
+    if(d<14) op=+(clamp((14-d)/14,0,1)*0.85).toFixed(2);
   }
+  if(txt!==lastBaldiTxt){ baldiChip.textContent=txt; lastBaldiTxt=txt; }
+  if(hunt!==baldiChip.classList.contains('hunt')) baldiChip.classList.toggle('hunt',hunt);
+  if(op!==lastDangerOp){ dangerEl.style.opacity=op; lastDangerOp=op; }
+  const show=!!(nearMachine&&locked);
+  if(show!==lastPrompt){ usePrompt.style.display=show?'block':'none'; lastPrompt=show; }
 }
 document.getElementById('startBtn').addEventListener('click',()=>{
   state='play'; audioOn();
@@ -1550,17 +1588,18 @@ document.getElementById('startBtn').addEventListener('click',()=>{
   nbChip.textContent=`📓 NOTEBOOKS 0 / ${NB_TOTAL}`;
   introT=0; setTimeout(requestLock,60);
   setTimeout(()=>toast(genWarning ||
-    `${nbRooms.length}/${NB_TOTAL} notebook rooms · 💧 ${machines.length} water machines · walk quietly!`),1200);
+    `${nbRooms.length}/${NB_TOTAL} notebook rooms · walk quietly · Q = graphics`),1200);
 });
 const locLabel=document.getElementById('locLabel'),locSub=document.getElementById('locSub');
-const visitedRooms=new Set(); let lastLoc='';
+const visitedRooms=new Set(); let lastLoc='', lastSub='';
 function updateHUD(){
   const i=worldToTile(player.x),j=worldToTile(player.z);
   const rid=(i>=0&&j>=0&&i<F&&j<F)?roomG[i+j*F]:0;
   if(rid) visitedRooms.add(rid);
   const loc=roomName[rid]||'HALLWAY';
   if(loc!==lastLoc){lastLoc=loc;locLabel.textContent=loc;}
-  locSub.textContent=`${visitedRooms.size} rooms explored · notebooks ${nbGot}/${NB_TOTAL}`;
+  const sub=`${visitedRooms.size} rooms explored · notebooks ${nbGot}/${NB_TOTAL}`;
+  if(sub!==lastSub){lastSub=sub;locSub.textContent=sub;}
 }
 function win(){
   if(state==='won') return;
@@ -1583,6 +1622,7 @@ let menuYaw=0;
 function animate(){
   requestAnimationFrame(animate);
   const dt=Math.min(clock.getDelta(),0.05), t=clock.elapsedTime;
+  trackPerf(dt);
 
   if(state==='menu'){
     menuYaw+=dt*0.12;
@@ -1630,9 +1670,8 @@ function animate(){
       if(s!==player.step){
         player.step=s;
         footstep(Math.min(1,spd/7));
-        // movement noise for Baldi: running is loud, walking barely audible
-        if(spd>RUN_SP-0.5) emitNoise(player.x,player.z,12);
-        else if(player.step%3===0) emitNoise(player.x,player.z,3.5);
+        if(spd>RUN_SP-0.5) emitNoise(player.x,player.z,9);
+        else if(player.step%4===0) emitNoise(player.x,player.z,3);
       }
     }
     const bob=Math.sin(player.phase)*(0.024+spd*0.004);
@@ -1670,7 +1709,7 @@ function animate(){
     const v=on*(0.82+0.18*Math.sin(t*7+f.seed*3));
     f.m.color.setRGB(v,v*0.985,v*0.91);
   }
-  if(dust){
+  if(dust && dust.visible){
     const p=dust.geometry.attributes.position;
     for(let i=0;i<dustVel.length;i++){
       let y=p.getY(i)+dustVel[i]*dt;
